@@ -1,0 +1,285 @@
+import PreviewToolbar, { PreviewMenu } from './PreviewToolbar';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { trackReadingPosition } from '../lib/reading-position';
+import DOMPurify from 'dompurify';
+import { List, ChevronLeft, Search } from 'lucide-react';
+
+export interface OutlineItem {
+  id: string;
+  title: string;
+  level: number;
+}
+export function ReadingLayout({
+  outline,
+  onNavigate,
+  children,
+  toolbar,
+  activeId,
+}: {
+  outline: OutlineItem[];
+  onNavigate: (id: string) => void;
+  children: React.ReactNode;
+  toolbar?: React.ReactNode;
+  activeId?: string;
+}) {
+  const [open, setOpen] = useState(true);
+  const [active, setActive] = useState('');
+  const [width, setWidth] = useState(220);
+  const [filter, setFilter] = useState('');
+  const nav = useRef<HTMLElement>(null);
+  const drag = useRef<{ x: number; width: number } | null>(null);
+  const current = activeId ?? active;
+  useEffect(() => {
+    const button = nav.current?.querySelector<HTMLElement>('[aria-current="location"]');
+    if (!button || !nav.current) return;
+    const pane = nav.current.getBoundingClientRect(),
+      item = button.getBoundingClientRect();
+    if (item.top < pane.top) nav.current.scrollTop += item.top - pane.top - 8;
+    else if (item.bottom > pane.bottom) nav.current.scrollTop += item.bottom - pane.bottom + 8;
+  }, [current, open, filter]);
+  return (
+    <div className="reading-view">
+      <PreviewToolbar className="reading-tools">
+        <button
+          className={open ? 'selected' : ''}
+          title="切换文档大纲"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <List size={15} /> 大纲
+        </button>
+        {toolbar}
+      </PreviewToolbar>
+      <div className="reading-body">
+        {open && (
+          <aside className="reading-outline" aria-label="文档大纲" style={{ width }}>
+            <div className="outline-caption">
+              文档大纲 <span>{outline.length}</span>
+              <button title="收起大纲" onClick={() => setOpen(false)}>
+                <ChevronLeft size={14} />
+              </button>
+            </div>
+            {outline.length > 8 && (
+              <label className="outline-search">
+                <Search size={13} />
+                <input
+                  aria-label="搜索文档标题"
+                  placeholder="搜索标题"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                />
+              </label>
+            )}
+            <nav ref={nav}>
+              {outline
+                .filter((item) => item.title.toLowerCase().includes(filter.toLowerCase()))
+                .map((item) => (
+                  <button
+                    key={item.id}
+                    title={item.title}
+                    className={current === item.id ? 'active' : ''}
+                    aria-current={current === item.id ? 'location' : undefined}
+                    style={{ paddingLeft: 12 + Math.min(item.level - 1, 5) * 12 }}
+                    onClick={() => {
+                      setActive(item.id);
+                      onNavigate(item.id);
+                    }}
+                  >
+                    {item.title}
+                  </button>
+                ))}
+            </nav>
+            {!outline.length && <p className="outline-empty">文档未设置标题层级</p>}
+            {filter &&
+              !outline.some((item) => item.title.toLowerCase().includes(filter.toLowerCase())) && (
+                <p className="outline-empty">没有匹配的标题</p>
+              )}
+          </aside>
+        )}
+        {open && (
+          <div
+            className="outline-resizer"
+            role="separator"
+            aria-label="调整大纲宽度"
+            aria-orientation="vertical"
+            aria-valuenow={width}
+            aria-valuemin={160}
+            aria-valuemax={320}
+            tabIndex={0}
+            onPointerDown={(e) => {
+              drag.current = { x: e.clientX, width };
+              e.currentTarget.setPointerCapture(e.pointerId);
+              e.preventDefault();
+            }}
+            onPointerMove={(e) => {
+              if (drag.current)
+                setWidth(
+                  Math.max(160, Math.min(320, drag.current.width + e.clientX - drag.current.x)),
+                );
+            }}
+            onPointerUp={() => {
+              drag.current = null;
+            }}
+            onPointerCancel={() => {
+              drag.current = null;
+            }}
+            onKeyDown={(e) => {
+              if (['ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+                e.stopPropagation();
+                e.preventDefault();
+                if (e.code !== 'Space')
+                  setWidth((w) =>
+                    Math.max(160, Math.min(320, w + (e.code === 'ArrowRight' ? 16 : -16))),
+                  );
+              }
+            }}
+            onKeyUp={(e) => {
+              if (['ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.stopPropagation();
+            }}
+          />
+        )}
+        <div className="reading-content">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export default function DocumentReader({
+  html,
+  note,
+  toolbar,
+}: {
+  html: string;
+  note?: string;
+  toolbar?: React.ReactNode;
+}) {
+  const scroll = useRef<HTMLDivElement>(null);
+  const [activeId, setActiveId] = useState('');
+  const [size, setSize] = useState(18);
+  const [font, setFont] = useState('sans');
+  const document = useMemo(() => {
+    const safe = DOMPurify.sanitize(html, {
+      FORBID_TAGS: [
+        'script',
+        'style',
+        'iframe',
+        'object',
+        'embed',
+        'form',
+        'video',
+        'audio',
+        'link',
+        'meta',
+        'base',
+      ],
+      FORBID_ATTR: ['style', 'srcset'],
+    });
+    const parsed = new DOMParser().parseFromString(safe, 'text/html');
+    // Keep self-contained raster images; no tracking or filesystem navigation.
+    parsed.querySelectorAll('img').forEach((img) => {
+      if (!/^data:image\/(png|jpeg|gif|webp);base64,/i.test(img.getAttribute('src') || ''))
+        img.remove();
+    });
+    parsed.querySelectorAll('input').forEach((input) => {
+      if (input.type !== 'checkbox') input.remove();
+      else input.disabled = true;
+    });
+    const anchors = new Map<string, string>();
+    const counts = new Map<string, number>();
+    const outline = Array.from(parsed.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+      .slice(0, 1000)
+      .map((heading, i) => {
+        const title = heading.textContent?.trim() || '无标题';
+        const slug = title
+          .toLowerCase()
+          .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+          .replace(/\s/g, '-');
+        const count = counts.get(slug) || 0;
+        counts.set(slug, count + 1);
+        if (heading.id) anchors.set(heading.id, `reader-heading-${i}`);
+        anchors.set(count ? `${slug}-${count}` : slug, `reader-heading-${i}`);
+        heading.id = `reader-heading-${i}`;
+        return { id: heading.id, title, level: Number(heading.tagName[1]) };
+      });
+    parsed.querySelectorAll('a[href^="#"]').forEach((a) => {
+      try {
+        const id = anchors.get(decodeURIComponent(a.getAttribute('href')!.slice(1)));
+        if (id) a.setAttribute('href', `#${id}`);
+      } catch {
+        /* Invalid fragment stays inert. */
+      }
+    });
+    return { html: parsed.body.innerHTML, outline };
+  }, [html]);
+  useEffect(() => {
+    if (!scroll.current) return;
+    const headings = document.outline.flatMap((item) => {
+      const element = scroll.current!.querySelector(`#${item.id}`);
+      return element ? [{ id: item.id, element }] : [];
+    });
+    return trackReadingPosition(scroll.current, headings, setActiveId);
+  }, [document]);
+  return (
+    <ReadingLayout
+      outline={document.outline}
+      activeId={activeId}
+      onNavigate={(id) =>
+        globalThis.document.getElementById(id)?.scrollIntoView({ block: 'start' })
+      }
+      toolbar={
+        <>
+          {toolbar}
+          <PreviewMenu>
+            <label className="preview-menu-option">
+              <span>字体</span>
+              <select aria-label="阅读字体" value={font} onChange={(e) => setFont(e.target.value)}>
+                <option value="sans">现代字体</option>
+                <option value="serif">书籍字体</option>
+              </select>
+            </label>
+            <label className="preview-menu-option">
+              <span>字号</span>
+              <select
+                aria-label="阅读字号"
+                value={size}
+                onChange={(e) => setSize(Number(e.target.value))}
+              >
+                {[14, 16, 18, 20, 22].map((value) => (
+                  <option key={value} value={value}>
+                    {value} px
+                  </option>
+                ))}
+              </select>
+            </label>
+          </PreviewMenu>
+        </>
+      }
+    >
+      <div className="document-scroll" ref={scroll}>
+        {note && <div className="document-note">{note}</div>}
+        <article
+          className="document-paper prose"
+          style={{
+            fontSize: size,
+            fontFamily:
+              font === 'serif'
+                ? 'Georgia, "Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif'
+                : 'var(--font-reading)',
+          }}
+          onClick={(e) => {
+            const anchor = (e.target as HTMLElement).closest('a');
+            if (anchor) {
+              e.preventDefault();
+              const href = anchor.getAttribute('href');
+              if (href?.startsWith('#reader-heading-'))
+                globalThis.document
+                  .getElementById(href.slice(1))
+                  ?.scrollIntoView({ block: 'start' });
+            }
+          }}
+          dangerouslySetInnerHTML={{ __html: document.html }}
+        />
+      </div>
+    </ReadingLayout>
+  );
+}

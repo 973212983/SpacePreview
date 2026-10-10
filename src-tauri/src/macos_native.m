@@ -1,0 +1,211 @@
+#import <AppKit/AppKit.h>
+#import <ApplicationServices/ApplicationServices.h>
+#import <Carbon/Carbon.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef bool (*SpaceCallback)(uint32_t, uint64_t, int32_t, bool);
+static SpaceCallback spaceCallback;
+static atomic_bool tapRunning = false;
+static atomic_bool automationAllowed = false;
+static CFMachPortRef keyboardTap;
+
+int32_t sp_mac_frontmost_pid(void) {
+    @autoreleasepool {
+        return NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier;
+    }
+}
+
+static bool finderIsFrontmost(void) {
+    return [NSWorkspace.sharedWorkspace.frontmostApplication.bundleIdentifier
+        isEqualToString:@"com.apple.finder"];
+}
+
+static id attribute(AXUIElementRef element, CFStringRef name) {
+    CFTypeRef value = NULL;
+    if (AXUIElementCopyAttributeValue(element, name, &value) != kAXErrorSuccess) {
+        return nil;
+    }
+    return CFBridgingRelease(value);
+}
+
+static bool fileAreaHasFocus(void) {
+    if (!finderIsFrontmost()) return false;
+    AXUIElementRef system = AXUIElementCreateSystemWide();
+    // Never let an unresponsive Finder hold the global keyboard callback.
+    AXUIElementSetMessagingTimeout(system, 0.005f);
+    id focused = attribute(system, kAXFocusedUIElementAttribute);
+    CFRelease(system);
+    if (!focused) return false;
+    bool fileArea = false;
+    id current = focused;
+    for (int depth = 0; current && depth < 8; depth++) {
+        AXUIElementRef element = (__bridge AXUIElementRef)current;
+        AXUIElementSetMessagingTimeout(element, 0.005f);
+        NSString *role = attribute(element, kAXRoleAttribute);
+        NSString *subrole = attribute(element, kAXSubroleAttribute);
+        NSString *identifier = attribute(element, CFSTR("AXIdentifier"));
+        if ([role isEqualToString:@"AXTextField"] ||
+            [role isEqualToString:@"AXTextArea"] ||
+            [role isEqualToString:@"AXComboBox"] ||
+            [role isEqualToString:@"AXToolbar"] ||
+            [role isEqualToString:@"AXMenu"] ||
+            [subrole isEqualToString:@"AXSourceList"] ||
+            [subrole isEqualToString:@"AXSearchField"] ||
+            (identifier && [identifier rangeOfString:@"sidebar" options:NSCaseInsensitiveSearch].location != NSNotFound)) {
+            return false;
+        }
+        if ([@[@"AXList", @"AXTable", @"AXBrowser", @"AXLayoutArea", @"AXScrollArea"]
+            containsObject:role ?: @""]) {
+            fileArea = true;
+        }
+        if ([role isEqualToString:@"AXWindow"] || [role isEqualToString:@"AXApplication"]) break;
+        current = attribute(element, kAXParentAttribute);
+    }
+    return fileArea;
+}
+
+static CGEventRef handleKey(CGEventTapProxy proxy, CGEventType type,
+                           CGEventRef event, void *context) {
+    (void)proxy;
+    (void)context;
+    @autoreleasepool {
+        if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
+            spaceCallback(0, 0, 0, false);
+            atomic_store(&tapRunning, false);
+            return event;
+        }
+        if (CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) != 49) return event;
+        bool repeat = CGEventGetIntegerValueField(event, kCGKeyboardEventAutorepeat) != 0;
+        int32_t pid = 0;
+        CGEventFlags flags = CGEventGetFlags(event);
+        if (type == kCGEventKeyDown && !repeat && atomic_load(&automationAllowed) &&
+            !(flags & (kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand)) &&
+            fileAreaHasFocus()) {
+            pid = sp_mac_frontmost_pid();
+        }
+        return spaceCallback(type, flags, pid, repeat) ? NULL : event;
+    }
+}
+
+void sp_mac_start(SpaceCallback callback) {
+    spaceCallback = callback;
+    [NSThread detachNewThreadWithBlock:^{
+        for (;;) {
+            @autoreleasepool {
+                // Start quietly; the settings button is the permission entry point.
+                if (!AXIsProcessTrusted()) {
+                    atomic_store(&tapRunning, false);
+                    [NSThread sleepForTimeInterval:1.0];
+                    continue;
+                }
+                keyboardTap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap,
+                    kCGEventTapOptionDefault,
+                    CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp),
+                    handleKey, NULL);
+                if (!keyboardTap) {
+                    [NSThread sleepForTimeInterval:1.0];
+                    continue;
+                }
+                CFRunLoopSourceRef source = CFMachPortCreateRunLoopSource(NULL, keyboardTap, 0);
+                if (!source) {
+                    CFRelease(keyboardTap);
+                    [NSThread sleepForTimeInterval:1.0];
+                    continue;
+                }
+                CFRunLoopAddSource(CFRunLoopGetCurrent(), source, kCFRunLoopCommonModes);
+                while (AXIsProcessTrusted()) {
+                    if (!CGEventTapIsEnabled(keyboardTap)) {
+                        spaceCallback(0, 0, 0, false);
+                        CGEventTapEnable(keyboardTap, true);
+                    }
+                    atomic_store(&tapRunning, CGEventTapIsEnabled(keyboardTap));
+                    CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1.0, false);
+                }
+                atomic_store(&tapRunning, false);
+                spaceCallback(0, 0, 0, false);
+                CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, kCFRunLoopCommonModes);
+                CFMachPortInvalidate(keyboardTap);
+                CFRelease(source);
+                CFRelease(keyboardTap);
+                keyboardTap = NULL;
+            }
+        }
+    }];
+}
+
+static OSStatus finderPermission(bool prompt) {
+    NSAppleEventDescriptor *target =
+        [NSAppleEventDescriptor descriptorWithBundleIdentifier:@"com.apple.finder"];
+    return AEDeterminePermissionToAutomateTarget(target.aeDesc, typeWildCard, typeWildCard, prompt);
+}
+
+uint32_t sp_mac_status(void) {
+    @autoreleasepool {
+        bool automation = finderPermission(false) == noErr;
+        atomic_store(&automationAllowed, automation);
+        return (AXIsProcessTrusted() ? 1 : 0) |
+            (atomic_load(&tapRunning) ? 2 : 0) |
+            (automation ? 4 : 0);
+    }
+}
+
+void sp_mac_request_permissions(void) {
+    @autoreleasepool {
+        AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)@{
+            (__bridge NSString *)kAXTrustedCheckOptionPrompt: @YES
+        });
+        atomic_store(&automationAllowed, finderPermission(true) == noErr);
+    }
+}
+
+char *sp_mac_copy_selection(void) {
+    @autoreleasepool {
+        NSAppleScript *script = [[NSAppleScript alloc] initWithSource:
+            @"with timeout of 3 seconds\n"
+             "tell application id \"com.apple.finder\"\n"
+             "set selectedItems to selection\n"
+             "set chosenPaths to {}\n"
+             "repeat with i from 1 to (count selectedItems)\n"
+             "if i > 100 then exit repeat\n"
+             "try\n"
+             "set end of chosenPaths to POSIX path of ((item i of selectedItems) as alias)\n"
+             "end try\n"
+             "end repeat\n"
+             "return chosenPaths\n"
+             "end tell\n"
+             "end timeout"];
+        NSDictionary *error = nil;
+        NSAppleEventDescriptor *result = [script executeAndReturnError:&error];
+        NSDictionary *payload;
+        if (!result) {
+            NSString *message = [error[NSAppleScriptErrorNumber] intValue] == -1743
+                ? @"请在系统设置 → 隐私与安全性 → 自动化中允许瞬览控制 Finder。"
+                : @"Finder 暂时无法读取所选文件，请确认权限后重试。";
+            payload = @{@"error": message};
+        } else {
+            NSMutableArray<NSString *> *paths = [NSMutableArray array];
+            for (NSInteger i = 1; i <= result.numberOfItems && i <= 100; i++) {
+                NSString *path = [result descriptorAtIndex:i].stringValue;
+                if (path.length) [paths addObject:path];
+            }
+            payload = @{@"paths": paths};
+        }
+        NSData *data = [NSJSONSerialization dataWithJSONObject:payload options:0 error:nil];
+        NSString *json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        return json ? strdup(json.UTF8String) : NULL;
+    }
+}
+
+void sp_mac_free_string(char *value) { free(value); }
+
+void sp_mac_activate_finder(int32_t pid) {
+    @autoreleasepool {
+        NSRunningApplication *finder = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+        if ([finder.bundleIdentifier isEqualToString:@"com.apple.finder"]) {
+            [finder activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+        }
+    }
+}

@@ -1,0 +1,38 @@
+import type { WorkerRequest, WorkerResult } from './worker-types';
+
+// One disposable worker per operation: cancellation and timeouts stop parsing, not just the UI.
+export function parseInWorker(request: WorkerRequest, signal: AbortSignal): Promise<WorkerResult> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('../workers/preview.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', abort);
+      worker.terminate();
+    };
+    const abort = () => {
+      cleanup();
+      reject(new DOMException('已取消', 'AbortError'));
+    };
+    const timeout = request.bytes.byteLength > 512 * 1024 ? 120_000 : 10_000;
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`解析超过 ${timeout / 1000} 秒，已停止。可切换为文件信息预览。`));
+    }, timeout);
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+    signal.addEventListener('abort', abort, { once: true });
+    worker.onmessage = (event) => {
+      cleanup();
+      event.data.error ? reject(new Error(event.data.error)) : resolve(event.data);
+    };
+    worker.onerror = () => {
+      cleanup();
+      reject(new Error('解析失败，文件可能已损坏或格式不受支持。'));
+    };
+    worker.postMessage(request, [request.bytes.buffer as ArrayBuffer]);
+  });
+}

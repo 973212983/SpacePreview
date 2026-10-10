@@ -1,0 +1,16 @@
+node_modules/
+dist/
+release/
+release-assets/
+public/pdfjs/
+src-tauri/target/
+test-results/
+*.log
+*.tsbuildinfo
+src-tauri/gen/
+.DS_Store
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
