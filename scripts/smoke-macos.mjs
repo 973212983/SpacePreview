@@ -66,7 +66,7 @@ try {
   await expect(page.locator('.hero-actions button')).toContainText('⌘ O');
   await page.getByTitle('更多选项', { exact: true }).click();
   await page.getByRole('button', { name: '偏好设置', exact: true }).click();
-  await expect(page.getByRole('switch', { name: 'Finder 空格预览' })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Finder 快捷键预览' })).toBeVisible();
   await expect(page.locator('.mac-permissions')).toContainText('辅助功能');
   await page.setViewportSize({ width: 640, height: 480 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
@@ -95,8 +95,8 @@ try {
   });
   await expect(page.locator('.mac-permissions')).toHaveCount(0, { timeout: 7000 });
   await expect(page.getByText('原生监听已运行 · 支持 Finder 与桌面')).toBeVisible();
-  await page.getByRole('switch', { name: 'Finder 空格预览' }).click();
-  await expect(page.getByRole('switch', { name: 'Finder 空格预览' })).toHaveAttribute(
+  await page.getByRole('switch', { name: 'Finder 快捷键预览' }).click();
+  await expect(page.getByRole('switch', { name: 'Finder 快捷键预览' })).toHaveAttribute(
     'aria-checked',
     'false',
   );
@@ -121,7 +121,7 @@ try {
   await page
     .locator('input[type=file]')
     .setInputFiles(fileURLToPath(new URL('../test-results/fixtures/smoke.pdf', import.meta.url)));
-  await expect(page.locator('.pdf-toolbar')).toContainText('PDF · 1 页');
+  await expect(page.getByRole('region', { name: 'PDF 第 1 页', exact: true })).toBeVisible();
   await expect
     .poll(() =>
       page.locator('.pdf-preview canvas').evaluate((canvas) => {
@@ -145,7 +145,7 @@ try {
     buffer: await readFile(new URL('../test-results/fixtures/smoke.pdf', import.meta.url)),
   });
   await expect(page.locator('.file-title strong')).toHaveText('fallback.pdf');
-  await expect(page.locator('.pdf-toolbar')).toContainText('PDF · 1 页');
+  await expect(page.getByRole('region', { name: 'PDF 第 1 页', exact: true })).toBeVisible();
   await expect
     .poll(() =>
       page.locator('.pdf-preview canvas').evaluate((canvas) => {

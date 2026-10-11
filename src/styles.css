@@ -1484,13 +1484,15 @@ button:disabled:hover {
   padding: 25px;
 }
 .settings-dialog {
-  width: 430px;
-  max-height: 90dvh;
+  width: min(680px, 100%);
+  max-height: calc(100dvh - 50px);
   overflow: auto;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 28px;
+  padding: 18px 26px;
+  font-size: 13px;
+  line-height: 1.5;
   box-shadow: 0 25px 90px #14132530;
 }
 .dialog-header {
@@ -1504,9 +1506,9 @@ button:disabled:hover {
   margin: 8px 0 0;
 }
 .settings-dialog h3 {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
-  margin: 26px 0 12px;
+  margin: 14px 0 8px;
 }
 .theme-options {
   display: flex;
@@ -1515,13 +1517,12 @@ button:disabled:hover {
 .theme-options > button {
   flex: 1;
   border: 1px solid var(--line);
-  padding: 16px 5px;
+  padding: 12px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 10px;
   border-radius: 7px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
 .theme-options > button.selected {
@@ -1533,17 +1534,18 @@ button:disabled:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 22px 0 15px;
+  padding: 10px 0;
+  gap: 18px;
   border-bottom: 1px solid var(--line);
 }
 .setting-row strong {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
 }
 .setting-row p {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
-  margin: 6px 0;
+  margin: 4px 0;
 }
 .switch {
   background: #d5d6dd;
@@ -1567,27 +1569,85 @@ button:disabled:hover {
 .switch.on span {
   transform: translateX(13px);
 }
+.shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 26px;
+}
 .shortcuts > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10px;
-  padding: 7px 0;
+  font-size: 11px;
+  gap: 10px;
+  padding: 5px 0;
   color: var(--muted);
 }
 .shortcuts kbd {
-  font-size: 9px;
+  font-size: 10px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.shortcut-editors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.shortcut-editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+.shortcut-record {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.shortcut-record.recording {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.shortcut-reset {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.shortcut-help {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 9px 0 0;
+}
+.shortcut-error {
+  color: var(--accent);
+}
+@media (max-width: 580px) {
+  .shortcut-editors,
+  .shortcuts {
+    grid-template-columns: 1fr;
+  }
 }
 .mac-permissions {
-  padding: 12px 14px;
+  padding: 9px 12px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.7;
+  font-size: 11px;
+  line-height: 1.6;
 }
 .mac-permissions p {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   color: var(--muted);
 }
 .mac-permissions button {
@@ -1601,7 +1661,7 @@ button:disabled:hover {
   gap: 10px;
   background: var(--bg);
   padding: 12px;
-  margin-top: 20px;
+  margin-top: 14px;
   border-radius: 6px;
   color: var(--muted);
   font-size: 10px;

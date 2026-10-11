@@ -3259,7 +3259,7 @@ dependencies = [
 
 [[package]]
 name = "space-preview"
-version = "0.9.12"
+version = "0.9.13"
 dependencies = [
  "cc",
  "mime_guess",

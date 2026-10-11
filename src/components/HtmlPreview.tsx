@@ -2,6 +2,7 @@ import PreviewToolbar from './PreviewToolbar';
 import { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { decodeHtml } from '../lib/html';
+import { forwardPreviewKey } from '../lib/shortcuts';
 import type { PreviewFile } from '../lib/files';
 import { readFullBytes } from '../lib/bridge';
 import DocumentReader from './DocumentReader';
@@ -114,22 +115,8 @@ export default function HtmlPreview({
           onLoad={() => {
             const doc = frame.current?.contentDocument;
             if (!doc) return;
-            const forward = (e: KeyboardEvent) => {
-              if ((e.target as HTMLElement)?.closest('input,textarea,select,[contenteditable]'))
-                return;
-              if (!['Space', 'Escape', 'ArrowLeft', 'ArrowRight'].includes(e.code)) return;
-              if (e.code === 'Space') e.preventDefault();
-              window.dispatchEvent(
-                new KeyboardEvent(e.type, {
-                  key: e.key,
-                  code: e.code,
-                  bubbles: true,
-                  repeat: e.repeat,
-                }),
-              );
-            };
-            doc.addEventListener('keydown', forward);
-            doc.addEventListener('keyup', forward);
+            doc.addEventListener('keydown', forwardPreviewKey);
+            doc.addEventListener('keyup', forwardPreviewKey);
           }}
         />
       )}

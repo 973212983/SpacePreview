@@ -11,6 +11,11 @@ static SpaceCallback spaceCallback;
 static atomic_bool tapRunning = false;
 static atomic_bool automationAllowed = false;
 static CFMachPortRef keyboardTap;
+static atomic_uint_fast64_t shortcutConfig = 49;
+
+void sp_mac_set_shortcut(uint32_t key, uint64_t flags) {
+    atomic_store(&shortcutConfig, key | (flags << 16));
+}
 
 int32_t sp_mac_frontmost_pid(void) {
     @autoreleasepool {
@@ -77,12 +82,18 @@ static CGEventRef handleKey(CGEventTapProxy proxy, CGEventType type,
             atomic_store(&tapRunning, false);
             return event;
         }
-        if (CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) != 49) return event;
+        uint64_t config = atomic_load(&shortcutConfig);
+        static uint64_t previousConfig = 49;
+        if (config != previousConfig) {
+            spaceCallback(0, 0, 0, false);
+            previousConfig = config;
+        }
+        if (CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode) != (config & 255)) return event;
         bool repeat = CGEventGetIntegerValueField(event, kCGKeyboardEventAutorepeat) != 0;
         int32_t pid = 0;
         CGEventFlags flags = CGEventGetFlags(event);
         if (type == kCGEventKeyDown && !repeat && atomic_load(&automationAllowed) &&
-            !(flags & (kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand)) &&
+            (flags & (kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand)) == (config >> 16) &&
             fileAreaHasFocus()) {
             pid = sp_mac_frontmost_pid();
         }

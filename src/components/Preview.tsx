@@ -1059,7 +1059,7 @@ function BinaryPreview({ file }: { file: PreviewFile }) {
         <Info size={16} />
         {unsupportedFormatHint(file.name) || (
           <>
-            此格式尚未支持内容预览。确认它是文本时，可用 <kbd>Shift</kbd> + <kbd>Space</kbd> 查看。
+            此格式尚未支持内容预览。确认它是文本时，可用 <kbd>Shift</kbd> + 预览快捷键查看。
           </>
         )}
       </p>

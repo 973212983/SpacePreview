@@ -4,6 +4,7 @@ import { readFullBytes } from '../lib/bridge';
 import { parseInWorker } from '../lib/worker-client';
 import { trackReadingPosition } from '../lib/reading-position';
 import { buildWordOutline } from '../lib/word-outline';
+import { forwardPreviewKey } from '../lib/shortcuts';
 import { ReadingLayout, type OutlineItem } from './DocumentReader';
 
 export default function WordPreview({
@@ -117,24 +118,8 @@ export default function WordPreview({
         if ((e.target as Element).closest('a')) e.preventDefault();
       });
       // Forward closing/navigation keys from the sandboxed document to the app.
-      for (const type of ['keydown', 'keyup'])
-        target.addEventListener(type, (e) => {
-          const key = e as KeyboardEvent;
-          if (['Space', 'Escape', 'ArrowLeft', 'ArrowRight'].includes(key.code)) {
-            key.preventDefault();
-            window.dispatchEvent(
-              new KeyboardEvent(type, {
-                key: key.key,
-                code: key.code,
-                repeat: key.repeat,
-                shiftKey: key.shiftKey,
-                ctrlKey: key.ctrlKey,
-                altKey: key.altKey,
-                metaKey: key.metaKey,
-              }),
-            );
-          }
-        });
+      for (const type of ['keydown', 'keyup'] as const)
+        target.addEventListener(type, forwardPreviewKey);
       setOutline(headings);
       setStatus('');
       setRendered(true);

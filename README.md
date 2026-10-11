@@ -2,9 +2,11 @@
 
 **不必打开，看一眼就好。** 基于 Tauri 2、React、TypeScript 和 Rust 的本地文件预览器。
 
-当前源码版本为 **v0.9.12 桌面 MVP**。Windows 版已有本机验收产物；GitHub Actions 分别构建 Windows x64、macOS Intel 和 Apple Silicon 安装包，三个平台检查完成后发布 Release。macOS 已接入 Finder 空格监听、权限提示和 Dock 文件打开，Finder 授权交互仍需 Mac 实机验收。操作系统级沙箱仍是后续阶段。
+当前源码版本为 **v0.9.13 桌面 MVP**。Windows 版已有本机验收产物；GitHub Actions 分别构建 Windows x64、macOS Intel 和 Apple Silicon 安装包，三个平台检查完成后发布 Release。macOS 已接入 Finder 快捷键监听、权限提示和 Dock 文件打开，Finder 授权交互仍需 Mac 实机验收。操作系统级沙箱仍是后续阶段。
 
 [下载安装包](https://github.com/likehao19/SpacePreview/releases/latest) · [版本说明](RELEASE-NOTES.md)。Mac 包使用临时签名，未进行 Apple Developer ID 签名和公证。
+
+v0.9.13：偏好设置加宽至 680px，减少留白并用两列显示快捷键说明，默认 1000×760 窗口完整显示；小窗口仍可滚动。Windows/macOS 分别录入预览快捷键并自动保存，默认 Space，可一键重置；支持字母、数字、符号、F1–F12 与 Ctrl/Alt/Win（macOS 为 Control/Option/Command）组合。Shift + 预览快捷键保留为纯文本模式，Esc 和方向键等导航键及 Ctrl/⌘+O 不可设为预览键。原生 Explorer/Finder 与 Word/HTML 内部键盘行为同步，仍在松开主键后触发一次；WebView2 缺少物理键码时按键名称回退识别。请避开系统已占用的组合键。
 
 v0.9.12：Windows 本地 PPTX/PPTM/模板/放映文稿优先通过已安装的 Microsoft PowerPoint 只读生成页面预览，保留静态图片、文字字体和排版；全页连续滚动，默认适应窗口，可搜索、缩放和选择文字。首次转换显示加载动画，后续按文件路径/大小/修改时间读取本地缓存；原文件不修改。更多菜单可切换文字速览，文字片段保留空格、换行与字段顺序。未安装 PowerPoint、转换失败、macOS、浏览器或压缩包内无本地路径的文稿仍提供文字速览；页面不播放动画、视频，也不运行宏。
 

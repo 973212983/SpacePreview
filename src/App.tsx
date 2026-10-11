@@ -33,9 +33,24 @@ import { PreviewMenuTarget } from './components/PreviewToolbar';
 import { desktop, inspectPath, openDefault, pickNativeFiles, siblings } from './lib/bridge';
 import { detectKind, formatSize, fromBrowser, type PreviewFile } from './lib/files';
 import { samples } from './lib/samples';
+import {
+  defaultShortcut,
+  matchesShortcut,
+  shortcutFromEvent,
+  shortcutEventCode,
+  shortcutLabel,
+  validShortcut,
+  type Shortcut,
+} from './lib/shortcuts';
 
 type Theme = 'system' | 'light' | 'dark';
-type Settings = { theme: Theme; closeOnBlur: boolean; spaceEnabled: boolean };
+type Settings = {
+  theme: Theme;
+  closeOnBlur: boolean;
+  spaceEnabled: boolean;
+  windowsShortcut: Shortcut;
+  macosShortcut: Shortcut;
+};
 type AgentStatus = {
   supported: boolean;
   enabled: boolean;
@@ -55,9 +70,17 @@ function savedSettings(): Settings {
       theme: ['system', 'light', 'dark'].includes(s.theme) ? s.theme : 'system',
       closeOnBlur: s.closeOnBlur === true,
       spaceEnabled: s.spaceEnabled !== false,
+      windowsShortcut: validShortcut(s.windowsShortcut) ? s.windowsShortcut : defaultShortcut,
+      macosShortcut: validShortcut(s.macosShortcut) ? s.macosShortcut : defaultShortcut,
     };
   } catch {
-    return { theme: 'system', closeOnBlur: false, spaceEnabled: true };
+    return {
+      theme: 'system',
+      closeOnBlur: false,
+      spaceEnabled: true,
+      windowsShortcut: defaultShortcut,
+      macosShortcut: defaultShortcut,
+    };
   }
 }
 const sampleDetails = [
@@ -76,6 +99,10 @@ export default function App() {
   const macos = agent?.platform === 'macos' || /Mac/i.test(navigator.platform);
   const fileManager = macos ? 'Finder' : '资源管理器';
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [recording, setRecording] = useState<'windowsShortcut' | 'macosShortcut' | null>(null);
+  const [shortcutError, setShortcutError] = useState('');
+  const shortcut = macos ? settings.macosShortcut : settings.windowsShortcut;
+  const previewKey = shortcutLabel(shortcut, macos);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [toast, setToast] = useState('');
@@ -95,6 +122,19 @@ export default function App() {
         ?.focus({ preventScroll: true });
     previousArchiveDepth.current = archiveStack.length;
   }, [archiveStack.length]);
+  useEffect(() => {
+    if (!desktop) return;
+    void invoke('set_agent_shortcut', { shortcut }).catch((error) =>
+      setToast(`快捷键设置失败：${String(error)}`),
+    );
+    spaceAction.current = null;
+  }, [shortcut]);
+  useEffect(() => {
+    if (!settingsOpen) {
+      setRecording(null);
+      setShortcutError('');
+    }
+  }, [settingsOpen]);
   useEffect(() => {
     if (!desktop) return;
     const window = getCurrentWindow();
@@ -139,7 +179,7 @@ export default function App() {
         const current = await invoke<AgentStatus>('agent_status');
         if (!cancelled) setAgent(current);
       } catch (error) {
-        if (!cancelled) setToast(`空格预览初始化失败：${String(error)}`);
+        if (!cancelled) setToast(`快捷键预览初始化失败：${String(error)}`);
       }
     };
     void refresh();
@@ -325,6 +365,28 @@ export default function App() {
   }, [settings.closeOnBlur, settingsOpen, file, closePreview]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (recording) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.repeat) return;
+        if (event.key === 'Escape') {
+          setRecording(null);
+          setShortcutError('');
+          return;
+        }
+        if (/^(Control|Alt|Meta|Shift)(Left|Right)$/.test(event.code)) return;
+        const next = shortcutFromEvent(event);
+        if (!next) {
+          setShortcutError(
+            '使用字母、数字、符号、F1–F12 或 Space，可组合 Ctrl / Alt / ⌘。Shift 保留为纯文本预览；Ctrl / ⌘ + O 用于选择文件。',
+          );
+          return;
+        }
+        setSettings((s) => ({ ...s, [recording]: next }));
+        setRecording(null);
+        setShortcutError('');
+        return;
+      }
       if (event.code === 'Space') trace('dom-space');
       if (event.key === 'Escape' && menuOpen) {
         event.preventDefault();
@@ -341,21 +403,26 @@ export default function App() {
         if (settingsOpen) setSettingsOpen(false);
         else closePreview();
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'o') {
         event.preventDefault();
         void choose();
       }
       if (settingsOpen) return;
       if (
-        event.code === 'Space' &&
-        !(event.target instanceof HTMLElement && event.target.closest('button'))
+        matchesShortcut(event, shortcut) &&
+        !(
+          shortcut.code === 'Space' &&
+          event.target instanceof HTMLElement &&
+          event.target.closest('button')
+        )
       ) {
         event.preventDefault();
-        if (event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
+        if (event.repeat) return;
         spaceAction.current = {
           action: file ? (event.shiftKey ? 'text' : 'close') : 'choose',
           version: request.current,
         };
+        return;
       }
       if (!file) return;
       if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
@@ -376,7 +443,7 @@ export default function App() {
       spaceAction.current = null;
     };
     const keyup = (event: KeyboardEvent) => {
-      if (event.code !== 'Space') return;
+      if (shortcutEventCode(event) !== shortcut.code) return;
       const pending = spaceAction.current;
       cancelSpace();
       if (!pending || pending.version !== request.current) return;
@@ -646,7 +713,7 @@ export default function App() {
               <Monitor size={13} />
               {desktop
                 ? agent?.running && agent.enabled
-                  ? 'Space 预览已就绪'
+                  ? `${previewKey} 预览已就绪`
                   : macos && agent?.enabled
                     ? 'Finder 预览待授权'
                     : '桌面预览'
@@ -664,7 +731,7 @@ export default function App() {
               <p>
                 图片、文档、代码，还有那些不认识的文件。
                 <br />
-                轻按空格，让内容即刻呈现。
+                轻按 {previewKey}，让内容即刻呈现。
               </p>
               <div className="hero-actions">
                 <button className="primary-button" onClick={() => void choose()}>
@@ -689,7 +756,7 @@ export default function App() {
                 <span>IMG</span>
               </div>
               <div className="space-key">
-                <span>space</span>
+                <span>{previewKey}</span>
                 <span className="space-symbol">⎵</span>
               </div>
               <div className="key-caption">一键，直达内容</div>
@@ -747,7 +814,7 @@ export default function App() {
             <span className="status-dot muted" /> 全部在本地发生
           </span>
           <span>
-            SPACEPREVIEW <b>·</b> v0.9.12
+            SPACEPREVIEW <b>·</b> v0.9.13
           </span>
           <span>为「只想看一眼」而设计</span>
         </footer>
@@ -808,13 +875,13 @@ export default function App() {
             {desktop && agent?.supported && (
               <div className="setting-row">
                 <div>
-                  <strong>{fileManager} 空格预览</strong>
+                  <strong>{fileManager} 快捷键预览</strong>
                   <p>
                     {agent.running
                       ? `原生监听已运行 · 支持 ${fileManager} 与桌面`
                       : macos
                         ? !agent.accessibility
-                          ? '请授权辅助功能，才能接收 Finder 的空格按键'
+                          ? '请授权辅助功能，才能接收 Finder 的预览快捷键'
                           : !agent.automation
                             ? '请允许瞬览读取 Finder 中选中的文件'
                             : '键盘监听未就绪，请检查权限后重启瞬览'
@@ -824,7 +891,7 @@ export default function App() {
                 <button
                   role="switch"
                   aria-checked={settings.spaceEnabled}
-                  aria-label={`${fileManager} 空格预览`}
+                  aria-label={`${fileManager} 快捷键预览`}
                   className={`switch ${settings.spaceEnabled ? 'on' : ''}`}
                   onClick={() => setSettings((s) => ({ ...s, spaceEnabled: !s.spaceEnabled }))}
                 >
@@ -850,13 +917,56 @@ export default function App() {
                 </button>
               </div>
             )}
-            <h3>键盘即是入口</h3>
+            <h3>预览快捷键</h3>
+            <div className="shortcut-editors">
+              {(['windowsShortcut', 'macosShortcut'] as const).map((platform) => (
+                <div className="shortcut-editor" key={platform}>
+                  <span>{platform === 'windowsShortcut' ? 'Windows' : 'macOS'}</span>
+                  <button
+                    className={`shortcut-record ${recording === platform ? 'recording' : ''}`}
+                    aria-label={`修改 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 预览快捷键`}
+                    onClick={() => {
+                      spaceAction.current = null;
+                      setRecording(platform);
+                      setShortcutError('');
+                    }}
+                    onBlur={() =>
+                      setRecording((current) => (current === platform ? null : current))
+                    }
+                  >
+                    <Keyboard size={15} />
+                    {recording === platform
+                      ? '请按快捷键…'
+                      : shortcutLabel(settings[platform], platform === 'macosShortcut')}
+                  </button>
+                  <button
+                    className="shortcut-reset"
+                    aria-label={`恢复 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 默认快捷键`}
+                    onClick={() => {
+                      setRecording(null);
+                      setShortcutError('');
+                      setSettings((s) => ({ ...s, [platform]: defaultShortcut }));
+                    }}
+                  >
+                    重置
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p
+              className={`shortcut-help ${shortcutError ? 'shortcut-error' : ''}`}
+              role={shortcutError ? 'alert' : undefined}
+            >
+              {shortcutError ||
+                '点击按键后录入，自动保存；Esc 取消。Shift + 预览快捷键用于纯文本模式。请避开系统已占用的组合。'}
+            </p>
+            <h3>常用操作</h3>
             <div className="shortcuts">
               {[
                 ['选择文件', 'Ctrl / ⌘ + O'],
-                ['关闭预览', 'Space / Esc'],
+                ['关闭预览', `${previewKey} / Esc`],
                 ['切换文件', '←  →'],
-                ['纯文本预览', 'Shift + Space'],
+                ['纯文本预览', `Shift + ${previewKey}`],
                 ['复制路径', 'Ctrl / ⌘ + Shift + C'],
                 ['默认应用打开', 'Enter'],
               ].map(([label, key]) => (
@@ -871,7 +981,7 @@ export default function App() {
               <p>
                 {desktop
                   ? agent?.supported
-                    ? `瞬览运行时，在 ${fileManager} 或桌面选中文件，按 Space 即可预览。${macos ? '首次使用需要系统授权。关闭窗口后仍在菜单栏运行。' : '无需另外运行脚本。关闭窗口后仍在托盘运行。'}`
+                    ? `瞬览运行时，在 ${fileManager} 或桌面选中文件，按 ${previewKey} 即可预览。${macos ? '首次使用需要系统授权。关闭窗口后仍在菜单栏运行。' : '关闭窗口后仍在托盘运行。'}`
                     : '当前系统支持文件选择与拖入，暂未接入文件管理器空格预览。'
                   : '这里可以预览真实文件。资源管理器唤起、默认应用打开和同目录导航，需要桌面版。'}
               </p>

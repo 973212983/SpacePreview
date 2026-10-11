@@ -10,6 +10,7 @@ use std::{
 use tauri::{Emitter, Manager, State};
 
 mod diagnostics;
+mod shortcut;
 
 #[tauri::command]
 fn trace_preview(stage: String) {
@@ -62,6 +63,16 @@ fn set_agent_enabled(enabled: bool) {
     macos_agent::set_enabled(enabled);
     #[cfg(not(any(windows, target_os = "macos")))]
     let _ = enabled;
+}
+
+#[tauri::command]
+fn set_agent_shortcut(shortcut: shortcut::Shortcut) -> Result<(), String> {
+    let config = shortcut::set(shortcut)?;
+    #[cfg(target_os = "macos")]
+    macos_agent::set_shortcut(config);
+    #[cfg(not(target_os = "macos"))]
+    let _ = config;
+    Ok(())
 }
 
 #[tauri::command]
@@ -405,6 +416,7 @@ pub fn run() {
             trace_preview,
             hide_preview,
             set_agent_enabled,
+            set_agent_shortcut,
             request_agent_permissions
         ])
         .setup(|app| {

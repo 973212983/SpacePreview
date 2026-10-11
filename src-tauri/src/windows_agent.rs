@@ -61,6 +61,7 @@ impl SpaceGesture {
 }
 
 thread_local! { static SPACE: Cell<SpaceGesture> = const { Cell::new(SpaceGesture { held: false, pending: None }) }; }
+thread_local! { static SHORTCUT_CONFIG: Cell<u32> = const { Cell::new(32 | (49 << 8)) }; }
 
 pub fn set_enabled(enabled: bool) {
     ENABLED.store(enabled, Ordering::Relaxed);
@@ -132,7 +133,11 @@ unsafe fn file_list_has_focus(foreground: HWND) -> bool {
 unsafe extern "system" fn keyboard_hook(code: i32, message: WPARAM, data: LPARAM) -> LRESULT {
     if code >= 0 {
         let key = &*(data.0 as *const KBDLLHOOKSTRUCT);
-        if key.vkCode == 0x20 {
+        let config = crate::shortcut::current();
+        if SHORTCUT_CONFIG.replace(config) != config {
+            SPACE.set(SpaceGesture::default());
+        }
+        if key.vkCode == config & 255 {
             if crate::diagnostics::enabled() {
                 let foreground = GetForegroundWindow();
                 let mut info = GUITHREADINFO {
@@ -161,9 +166,12 @@ unsafe extern "system" fn keyboard_hook(code: i32, message: WPARAM, data: LPARAM
             } else if message.0 == WM_KEYDOWN as usize || message.0 == WM_SYSKEYDOWN as usize {
                 let foreground = GetForegroundWindow();
                 let eligible = ENABLED.load(Ordering::Relaxed)
-                    && [0x11, 0x12, 0x5B, 0x5C]
-                        .iter()
-                        .all(|key| GetAsyncKeyState(*key) >= 0)
+                    && crate::shortcut::matches(
+                        config,
+                        GetAsyncKeyState(0x11) < 0,
+                        GetAsyncKeyState(0x12) < 0,
+                        GetAsyncKeyState(0x5B) < 0 || GetAsyncKeyState(0x5C) < 0,
+                    )
                     && file_list_has_focus(foreground);
                 let candidate =
                     eligible.then(|| (foreground.0 as usize, GetAsyncKeyState(0x10) < 0));

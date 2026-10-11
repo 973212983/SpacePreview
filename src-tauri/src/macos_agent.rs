@@ -14,6 +14,7 @@ use crate::macos_gesture::{candidate, SpaceGesture};
 
 extern "C" {
     fn sp_mac_start(callback: extern "C" fn(u32, u64, i32, bool) -> bool);
+    fn sp_mac_set_shortcut(key: u32, flags: u64);
     fn sp_mac_status() -> u32;
     fn sp_mac_request_permissions();
     fn sp_mac_frontmost_pid() -> i32;
@@ -32,7 +33,20 @@ extern "C" fn keyboard_event(kind: u32, flags: u64, pid: i32, repeat: bool) -> b
     let mut gesture = SPACE.get();
     let suppress = match kind {
         10 => gesture.keydown(
-            candidate(pid, flags, ENABLED.load(Ordering::Relaxed)),
+            if crate::shortcut::matches(
+                crate::shortcut::current(),
+                flags & (1 << 18) != 0,
+                flags & (1 << 19) != 0,
+                flags & (1 << 20) != 0,
+            ) {
+                candidate(
+                    pid,
+                    flags & !((1 << 18) | (1 << 19) | (1 << 20)),
+                    ENABLED.load(Ordering::Relaxed),
+                )
+            } else {
+                None
+            },
             repeat,
         ),
         11 => {
@@ -60,6 +74,15 @@ pub fn set_enabled(enabled: bool) {
     if ENABLED.swap(enabled, Ordering::Relaxed) != enabled {
         GENERATION.fetch_add(1, Ordering::Relaxed);
     }
+}
+
+pub fn set_shortcut(config: u32) {
+    let mods = config >> 16;
+    let flags = (((mods & 1) as u64) << 18)
+        | ((((mods >> 1) & 1) as u64) << 19)
+        | ((((mods >> 2) & 1) as u64) << 20);
+    GENERATION.fetch_add(1, Ordering::Relaxed);
+    unsafe { sp_mac_set_shortcut((config >> 8) & 255, flags) };
 }
 
 pub fn status() -> serde_json::Value {

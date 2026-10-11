@@ -1,4 +1,13 @@
-# v0.9.12 验证记录
+# v0.9.13 验证记录
+
+## v0.9.13 偏好设置与自定义预览快捷键（2026-10-11）
+
+- 设置弹窗宽 680px、主题按钮横排、常用操作两列，默认 1000×760 中完整显示，无溢出滚动：Windows 内容高约 606px，含 macOS 未授权说明约 696px；640×480 保留滚动且无页面横向溢出。真实 Windows WebView2 目视确认布局完整。
+- Windows/macOS 快捷键独立持久化，当前平台同步到原生监听；录入时屏蔽预览操作，Esc 取消、失焦取消、一键恢复 Space，导航键、Shift 和 Ctrl/⌘+O 不作为预览键。配置更新清理旧按键状态，仍在松开主键后先清状态再排队。
+- 原生 WebView2 的注入/远程按键可缺少 `KeyboardEvent.code`：实际诊断捕获 `code=`、`shift=false`、`composing=false`，增加 `key` 回退，并覆盖录入、匹配与松开处理。Word/HTML 沙盒文档转发完整修饰键，由主窗口决定是否接管，未接管时保留文字复制等操作。
+- 前端 11 文件 / 55 项测试通过；Windows 原生 18 项通过、2 项交互依赖默认忽略。TypeScript/Vite 与 Windows release EXE / NSIS 构建通过，Rust 格式检查通过，94 个代码文件 UTF-8 无 BOM 检查通过。
+- 生产 UI 验证 Windows/macOS 布局、F8 与 Ctrl+Alt+P/⌘+P 录入、独立保存、重载恢复、无效组合、Esc 取消、重置、主键重复按下仅松开触发一次、空键码回退及 Word/HTML 中组合键关闭。阅读字体/编码/Word/RTF/HTML、36px 合并头部、macOS 权限流程和 PDF Promise/Worker 兼容回归通过；Mac UI 使用模拟桥接，Finder 权限与按键交互仍需 Mac 实机验收。
+- 最终 Windows 便携版实际录入 F8 后，Explorer 选择合成 TXT 按一次 F8 显示正文；再按 F8 关闭，选择下一份 Markdown 后一次 F8 正常显示。原生日志两次均从 `held=false` 开始，松开时仅提交一次并加载成功，保留本地 `test-results/shortcut-native-after.log`，不加入发行包。
 
 ## v0.9.12 PowerPoint 页面预览（2026-10-10）
 
