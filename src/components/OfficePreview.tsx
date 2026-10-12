@@ -1,7 +1,8 @@
 import PreviewToolbar from './PreviewToolbar';
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Table2 } from 'lucide-react';
 import type { WorkerResult } from '../lib/worker-types';
+import { TextAppearanceControls, useTextAppearance } from './TextAppearance';
 
 function columnName(index: number): string {
   let name = '';
@@ -10,9 +11,21 @@ function columnName(index: number): string {
   return name;
 }
 export default function OfficePreview({ result }: { result: WorkerResult }) {
+  const { size } = useTextAppearance();
+  const rowHeight = Math.max(32, Math.ceil(size * 1.5 + 8));
   const [selected, setSelected] = useState(0);
   const [start, setStart] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
+  const previousHeight = useRef(rowHeight);
+  const scrollPosition = useRef(0);
+  useLayoutEffect(() => {
+    if (scroller.current && rowHeight !== previousHeight.current) {
+      scroller.current.scrollTop = (scrollPosition.current / previousHeight.current) * rowHeight;
+      scrollPosition.current = scroller.current.scrollTop;
+      setStart(Math.max(0, Math.floor(scroller.current.scrollTop / rowHeight) - 3));
+    }
+    previousHeight.current = rowHeight;
+  }, [rowHeight]);
   if (result.sheets) {
     const sheet = result.sheets[selected];
     if (!sheet) return <div className="preview-message">工作簿没有可显示的工作表。</div>;
@@ -20,6 +33,7 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
     const end = Math.min(sheet.rows.length, start + 50);
     return (
       <div className="workbook-preview">
+        <TextAppearanceControls />
         <PreviewToolbar className="content-toolbar">
           <span>
             <Table2 size={14} />
@@ -30,7 +44,16 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
         <div
           className="workbook-scroll"
           ref={scroller}
-          onScroll={(e) => setStart(Math.max(0, Math.floor(e.currentTarget.scrollTop / 32) - 3))}
+          style={
+            {
+              '--workbook-row-height': `${rowHeight}px`,
+              overflowAnchor: 'none',
+            } as React.CSSProperties
+          }
+          onScroll={(e) => {
+            scrollPosition.current = e.currentTarget.scrollTop;
+            setStart(Math.max(0, Math.floor(scrollPosition.current / rowHeight) - 3));
+          }}
         >
           <table className="workbook-table">
             <thead>
@@ -46,7 +69,10 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
             <tbody>
               {start > 0 && (
                 <tr aria-hidden="true">
-                  <td colSpan={columns + 1} style={{ height: start * 32, padding: 0, border: 0 }} />
+                  <td
+                    colSpan={columns + 1}
+                    style={{ height: start * rowHeight, padding: 0, border: 0 }}
+                  />
                 </tr>
               )}
               {sheet.rows.slice(start, end).map((row, offset) => (
@@ -63,7 +89,7 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
                 <tr aria-hidden="true">
                   <td
                     colSpan={columns + 1}
-                    style={{ height: (sheet.rows.length - end) * 32, padding: 0, border: 0 }}
+                    style={{ height: (sheet.rows.length - end) * rowHeight, padding: 0, border: 0 }}
                   />
                 </tr>
               )}
@@ -81,6 +107,7 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
               onClick={() => {
                 setSelected(i);
                 setStart(0);
+                scrollPosition.current = 0;
                 if (scroller.current) scroller.current.scrollTop = 0;
               }}
             >
@@ -95,6 +122,7 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
   if (!slide) return <div className="preview-message">演示文稿没有可显示的幻灯片。</div>;
   return (
     <div className="slides-preview">
+      <TextAppearanceControls />
       <PreviewToolbar className="content-toolbar">
         <span>演示文稿文字速览</span>
         <span className="toolbar-summary">图片、动画与原始布局请用默认应用查看</span>

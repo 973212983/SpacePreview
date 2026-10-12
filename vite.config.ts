@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: { alias: { buffer: 'buffer/' } },
   build: { target: ['es2021', 'safari15.4'] },
   server: { port: 1420, strictPort: true },
   clearScreen: false,

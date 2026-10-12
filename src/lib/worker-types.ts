@@ -8,6 +8,7 @@ export interface ArchiveEntry {
   method?: number;
   encrypted?: boolean;
   crc?: number;
+  sourcePath?: string;
 }
 export interface WorkerRequest {
   encoding?: import('./files').TextEncoding;
@@ -19,8 +20,20 @@ export interface WorkerRequest {
     | 'archive-entry'
     | 'archive-directory'
     | 'archive-data'
+    | 'archive-decompress'
+    | 'package-directory'
+    | 'compound-data'
+    | 'web-archive'
+    | 'design-thumbnail'
+    | 'xar-data'
+    | 'legacy-doc'
+    | 'legacy-ppt'
+    | 'graphviz'
+    | 'metafile'
     | 'docx'
     | 'xlsx'
+    | 'legacy-xlsx'
+    | 'asciidoc'
     | 'pptx'
     | 'csv'
     | 'odt'
@@ -33,6 +46,9 @@ export interface WorkerRequest {
     | 'dxf'
     | 'model'
     | 'tiff'
+    | 'decoded-image'
+    | 'mail'
+    | 'animation'
     | 'docx-layout';
   name: string;
   bytes: Uint8Array;
@@ -40,6 +56,7 @@ export interface WorkerRequest {
   entry?: ArchiveEntry;
   count?: number;
   page?: number;
+  fileSize?: number;
 }
 export interface WorkbookSheet {
   name: string;
@@ -62,5 +79,12 @@ export interface WorkerResult {
   note?: string;
   drawing?: import('./cad').CadDrawing;
   positions?: Float32Array;
+  points?: boolean;
+  colors?: Float32Array;
   raster?: { width: number; height: number; pixels: Uint8Array; pages: number; page: number };
+  image?: { pages: number; page: number; mime?: string };
+  mail?: import('./mail').MailContent;
+  webArchive?: import('./web-archive').WebArchive;
+  metafile?: { width: number; height: number; records: number };
+  animation?: { data: Record<string, unknown>; names: string[]; page: number };
 }

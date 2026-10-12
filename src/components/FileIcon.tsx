@@ -22,7 +22,7 @@ export function fileTypeLabel(name: string, folder = false): string {
   if (ext === 'lnk') return '快捷方式';
   if (ext === 'url') return 'Internet 快捷方式';
   if (['exe', 'dll', 'sys', 'msi'].includes(ext)) return ext === 'exe' ? '应用程序' : '系统文件';
-  if (['ttf', 'otf', 'woff', 'woff2'].includes(ext)) return '字体文件';
+  if (['ttf', 'otf', 'woff', 'woff2', 'ttc'].includes(ext)) return '字体文件';
   if (ext === 'txt') return '文本文档';
   const kind = detectKind(name);
   if (kind === 'text') return `${ext.toUpperCase()} 源码 / 文本`;
@@ -59,7 +59,20 @@ export default function FileIcon({
     color = ext === 'txt' ? '#4b91bb' : '#287fbc';
     Glyph = ext === 'txt' ? FileText : FileCode2;
   }
-  if (['docx', 'odt', 'markdown', 'rtf', 'epub', 'fb2'].includes(kind)) {
+  if (
+    [
+      'docx',
+      'legacy-doc',
+      'odt',
+      'markdown',
+      'rtf',
+      'epub',
+      'fb2',
+      'asciidoc',
+      'mail',
+      'web-archive',
+    ].includes(kind)
+  ) {
     color = '#367ed5';
     Glyph = FileText;
   }
@@ -67,15 +80,19 @@ export default function FileIcon({
     color = '#d25353';
     Glyph = FileText;
   }
-  if (['xlsx', 'ods', 'csv'].includes(kind)) {
+  if (['xlsx', 'legacy-xlsx', 'ods', 'csv'].includes(kind)) {
     color = '#29976d';
     Glyph = Table2;
   }
-  if (['pptx', 'odp'].includes(kind)) {
+  if (['pptx', 'legacy-ppt', 'odp'].includes(kind)) {
     color = '#d87945';
     Glyph = FileText;
   }
-  if (['image', 'tiff'].includes(kind)) {
+  if (
+    ['image', 'tiff', 'metafile', 'decoded-image', 'diagram', 'animation', 'thumbnail'].includes(
+      kind,
+    )
+  ) {
     color = '#a359b8';
     Glyph = Image;
   }
@@ -99,11 +116,11 @@ export default function FileIcon({
     color = '#4b79bd';
     Glyph = FileCog;
   }
-  if (['db', 'sqlite', 'sqlite3'].includes(ext)) {
+  if (kind === 'database') {
     color = '#588995';
     Glyph = Database;
   }
-  if (['ttf', 'otf', 'woff', 'woff2'].includes(ext)) {
+  if (kind === 'font') {
     color = '#9271b0';
     Glyph = Type;
   }

@@ -12,6 +12,14 @@ import {
 import { listZip, extractZipEntries } from './archive';
 
 describe('preview routing and fallback', () => {
+  it('distinguishes DLL/ELF binaries from SQL DDL and UTF-16 text', () => {
+    expect(detectKind('GameDll.dll')).toBe('binary');
+    expect(detectKind('schema.ddl')).toBe('text');
+    expect(sniffKind(new Uint8Array([0x4d, 0x5a, 0x90, 0, 3, 0, 0, 0]))).toBe('binary');
+    expect(sniffKind(new Uint8Array([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0]))).toBe('binary');
+    expect(sniffKind(strToU8('CREATE TABLE users (id INTEGER PRIMARY KEY);'))).toBe('text');
+    expect(sniffKind(new Uint8Array([255, 254, 65, 0, 66, 0]))).toBe('text');
+  });
   it('assigns display MIME types to files extracted from archives', () => {
     expect(previewMime('drawing.SVG')).toBe('image/svg+xml');
     expect(previewMime('photo.jpg')).toBe('image/jpeg');

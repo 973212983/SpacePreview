@@ -19,6 +19,17 @@ const event = (code: string, mods: Partial<KeyboardEvent> = {}) => ({
 });
 
 describe('preview shortcut configuration', () => {
+  it('reserves application copy and zoom shortcuts on Windows and macOS', () => {
+    for (const code of ['KeyO', 'KeyC', 'Equal', 'Minus']) {
+      for (const mods of [{ ctrlKey: true }, { metaKey: true }]) {
+        expect(shortcutFromEvent(event(code, mods))).toBeNull();
+        expect(
+          validShortcut({ ...defaultShortcut, code, ctrl: !!mods.ctrlKey, meta: !!mods.metaKey }),
+        ).toBe(false);
+      }
+      expect(shortcutFromEvent(event(code, { ctrlKey: true, altKey: true }))).not.toBeNull();
+    }
+  });
   it('records and matches WebView2 input without a physical key code', () => {
     for (const [key, code] of [
       ['F8', 'F8'],

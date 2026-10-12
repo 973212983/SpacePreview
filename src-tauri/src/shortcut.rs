@@ -18,8 +18,11 @@ impl Shortcut {
             serde_json::from_str(include_str!("../../src/lib/shortcut-keys.json"))
                 .map_err(|e| e.to_string())?;
         let key = keys.get(&self.code).ok_or("不支持此按键")?;
-        if self.code == "KeyO" && (self.ctrl || self.meta) && !self.alt {
-            return Err("此快捷键用于选择文件".into());
+        if ["KeyO", "KeyC", "Equal", "Minus"].contains(&self.code.as_str())
+            && (self.ctrl || self.meta)
+            && !self.alt
+        {
+            return Err("此快捷键保留给选择文件、复制路径或文字缩放".into());
         }
         Ok(key[0]
             | (key[1] << 8)
@@ -73,6 +76,9 @@ mod tests {
             "Tab",
             "Unknown",
             "KeyO",
+            "KeyC",
+            "Equal",
+            "Minus",
         ] {
             let s = Shortcut {
                 code: code.into(),
@@ -81,6 +87,23 @@ mod tests {
                 meta: false,
             };
             assert!(s.packed().is_err(), "{code}");
+        }
+    }
+
+    #[test]
+    fn reserves_copy_and_zoom_on_both_platforms_but_allows_alt_combinations() {
+        for code in ["KeyO", "KeyC", "Equal", "Minus"] {
+            for (ctrl, meta) in [(true, false), (false, true)] {
+                let mut shortcut = Shortcut {
+                    code: code.into(),
+                    ctrl,
+                    alt: false,
+                    meta,
+                };
+                assert!(shortcut.packed().is_err());
+                shortcut.alt = true;
+                assert!(shortcut.packed().is_ok());
+            }
         }
     }
 }

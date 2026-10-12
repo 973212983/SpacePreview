@@ -9,12 +9,13 @@ import {
   Eye,
   FolderOpen,
 } from 'lucide-react';
-import { formatSize, previewMime, type PreviewFile } from '../lib/files';
+import { extension, formatSize, previewMime, type PreviewFile } from '../lib/files';
 import { readRange } from '../lib/bridge';
 import { readZipDirectory, readZipEntry, ZIP_ENTRY_LIMIT } from '../lib/zip-range';
 import { parseInWorker } from '../lib/worker-client';
 import type { ArchiveEntry } from '../lib/worker-types';
 import FileIcon, { fileTypeLabel } from './FileIcon';
+import { openArchive } from '../lib/archive-session';
 const fileNames = new Intl.Collator('zh-CN', { numeric: true });
 
 function entryReason(entry: ArchiveEntry) {
@@ -22,11 +23,15 @@ function entryReason(entry: ArchiveEntry) {
     ? ''
     : entry.encrypted
       ? '已加密'
-      : ![0, 8].includes(entry.method ?? -1)
-        ? '算法不支持'
-        : entry.size > ZIP_ENTRY_LIMIT || entry.compressed > ZIP_ENTRY_LIMIT
-          ? '超过 32 MB'
-          : '';
+      : entry.sourcePath !== undefined
+        ? entry.size > 256 * 1024 * 1024
+          ? '超过 256 MB'
+          : ''
+        : ![0, 8].includes(entry.method ?? -1)
+          ? '算法不支持'
+          : entry.size > ZIP_ENTRY_LIMIT || entry.compressed > ZIP_ENTRY_LIMIT
+            ? '超过 32 MB'
+            : '';
 }
 
 export default function ArchivePreview({
@@ -44,6 +49,32 @@ export default function ArchivePreview({
   const [page, setPage] = useState(0);
   const [extracting, setExtracting] = useState(false);
   const [selected, setSelected] = useState('');
+  const [reload, setReload] = useState(0);
+  const [password, setPassword] = useState('');
+  const session = useRef<Awaited<ReturnType<typeof openArchive>> | null>(null);
+  const zip = [
+    'zip',
+    'jar',
+    'apk',
+    'ipa',
+    'cbz',
+    'whl',
+    'nupkg',
+    'snupkg',
+    'vsix',
+    'xpi',
+    'egg',
+    'pyz',
+    'appx',
+    'appxbundle',
+    'msix',
+    'msixbundle',
+    'aab',
+    'hap',
+    'wgt',
+    'wgtu',
+    'qlplugin',
+  ].includes(extension(file.name));
   const [sort, setSort] = useState<{
     key: 'name' | 'type' | 'size' | 'compressed';
     descending: boolean;
@@ -54,6 +85,18 @@ export default function ArchivePreview({
   useEffect(() => {
     const controller = new AbortController();
     const load = async () => {
+      setError('');
+      setEntries(null);
+      if (!zip) {
+        const archive = await openArchive(file, controller.signal, password);
+        if (controller.signal.aborted) {
+          archive.close();
+          return;
+        }
+        session.current = archive;
+        setEntries(archive.entries);
+        return;
+      }
       const directory = await readZipDirectory(file.size, (offset, length) =>
         readRange(file, offset, length),
       );
@@ -69,9 +112,11 @@ export default function ArchivePreview({
     });
     return () => {
       controller.abort();
+      session.current?.close();
+      session.current = null;
       extraction.current?.abort();
     };
-  }, [file]);
+  }, [file, reload, zip]);
   const rows = useMemo(() => {
     if (!entries) return [];
     const folders = new Map<string, ArchiveEntry>();
@@ -134,16 +179,23 @@ export default function ArchivePreview({
     setExtracting(true);
     setEntryError('');
     try {
-      const bytes = await readZipEntry(entry, file.size, read);
-      if (controller.signal.aborted) return;
-      const result = await parseInWorker(
-        { kind: 'archive-data', name: file.name, bytes, entry },
-        controller.signal,
-      );
+      let blob: Blob;
+      if (session.current) {
+        blob = await session.current.extract(entry);
+      } else {
+        const bytes = await readZipEntry(entry, file.size, read);
+        if (controller.signal.aborted) return;
+        const result = await parseInWorker(
+          { kind: 'archive-data', name: file.name, bytes, entry },
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        blob = new Blob([result.data as Uint8Array<ArrayBuffer>]);
+      }
       if (controller.signal.aborted) return;
       const name = entry.name.split('/').pop() || entry.name;
       const mime = previewMime(name);
-      const blob = new Blob([result.data as Uint8Array<ArrayBuffer>], { type: mime });
+      blob = blob.slice(0, blob.size, mime);
       onOpen({
         id: crypto.randomUUID(),
         name,
@@ -158,24 +210,43 @@ export default function ArchivePreview({
       if (!controller.signal.aborted) setExtracting(false);
     }
   };
+  const passwordControls = !zip && (
+    <PreviewToolbar className="content-toolbar">
+      <label className="preview-menu-option">
+        <span>压缩包密码</span>
+        <input
+          type="password"
+          aria-label="压缩包密码"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+      </label>
+      <button onClick={() => setReload((value) => value + 1)}>使用密码重新读取</button>
+    </PreviewToolbar>
+  );
   if (error)
     return (
-      <div className="preview-message" role="alert">
-        {error}
-        <p>可在底部使用默认应用打开。</p>
-      </div>
+      <>
+        {passwordControls}
+        <div className="preview-message" role="alert">
+          {error}
+          <p>可在底部使用默认应用打开。</p>
+        </div>
+      </>
     );
   if (!entries)
     return (
       <div className="preview-message" role="status">
+        <span className="spinner" />
         正在读取压缩包目录…
       </div>
     );
   const pageCount = Math.max(1, Math.ceil(rows.length / 100));
   return (
     <div className="archive-preview">
+      {passwordControls}
       <PreviewToolbar className="content-toolbar archive-toolbar">
-        <span title={`${formatSize(file.size)} · 按需读取`}>
+        <span title={`${formatSize(file.size)} · ${zip ? '按需读取' : '后台解码'}`}>
           {entries.length.toLocaleString()} 项
         </span>
         <button
@@ -334,7 +405,7 @@ export default function ArchivePreview({
                 {entry.directory ? '—' : formatSize(entry.size)}
               </span>
               <span role="gridcell" className="archive-compressed">
-                {entry.directory ? '—' : formatSize(entry.compressed)}
+                {entry.directory || entry.compressed < 0 ? '—' : formatSize(entry.compressed)}
               </span>
             </button>
           );
@@ -370,6 +441,10 @@ export default function ArchivePreview({
             <button
               onClick={() => {
                 extraction.current?.abort();
+                if (!zip) {
+                  session.current?.close();
+                  setReload((value) => value + 1);
+                }
                 setExtracting(false);
               }}
             >

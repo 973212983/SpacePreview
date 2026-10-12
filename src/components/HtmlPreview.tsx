@@ -6,20 +6,36 @@ import { forwardPreviewKey } from '../lib/shortcuts';
 import type { PreviewFile } from '../lib/files';
 import { readFullBytes } from '../lib/bridge';
 import DocumentReader from './DocumentReader';
+import { TextAppearanceControls, useTextAppearance } from './TextAppearance';
+import { forwardPreviewWheel } from '../lib/preview-gestures';
 
-export default function HtmlPreview({
-  file,
-  onSource,
-}: {
-  file: PreviewFile;
-  onSource: () => void;
-}) {
+export default function HtmlPreview({ file }: { file: PreviewFile }) {
+  const { size, font } = useTextAppearance();
   const [html, setHtml] = useState('');
   const [encoding, setEncoding] = useState('');
   const [error, setError] = useState('');
   const [reading, setReading] = useState(false);
   const [progress, setProgress] = useState(0);
   const frame = useRef<HTMLIFrameElement>(null);
+  const applyAppearance = () => {
+    const doc = frame.current?.contentDocument;
+    if (!doc?.body) return;
+    let style = doc.getElementById('preview-text-appearance');
+    if (!style) {
+      style = doc.createElement('style');
+      style.id = 'preview-text-appearance';
+      doc.head.append(style);
+    }
+    const family =
+      font === 'auto'
+        ? ''
+        : getComputedStyle(frame.current!).getPropertyValue('--preview-font-family');
+    // Scale authored heading/paragraph sizes together; only an explicit font
+    // choice overrides the webpage's font declarations.
+    style.textContent = `body{font-size:16px!important} ${family ? `body,body *{font-family:${family}!important}` : ''}`;
+    doc.body.style.zoom = String(size / 16);
+  };
+  useEffect(applyAppearance, [size, font, html, reading]);
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
@@ -88,14 +104,12 @@ export default function HtmlPreview({
       <button title="不执行脚本或加载外部资源" onClick={() => setReading(!reading)}>
         {reading ? '网页预览' : '阅读模式'}
       </button>
-      <button title="动态网页可查看源码" onClick={onSource}>
-        查看源码
-      </button>
     </>
   );
   if (reading) return <DocumentReader html={html} toolbar={tools} />;
   return (
     <div className="html-preview">
+      <TextAppearanceControls />
       <PreviewToolbar className="content-toolbar">{tools}</PreviewToolbar>
       {error ? (
         <p className="preview-message" role="alert">
@@ -117,6 +131,8 @@ export default function HtmlPreview({
             if (!doc) return;
             doc.addEventListener('keydown', forwardPreviewKey);
             doc.addEventListener('keyup', forwardPreviewKey);
+            doc.addEventListener('wheel', forwardPreviewWheel, { passive: false });
+            applyAppearance();
           }}
         />
       )}

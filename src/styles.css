@@ -1116,8 +1116,8 @@ button:disabled:hover {
 }
 .code-scroll pre {
   margin: 0;
-  font-family: var(--font-code);
-  font-size: 15px;
+  font-family: var(--preview-code-family, var(--font-code));
+  font-size: var(--preview-font-size, 16px);
   line-height: 1.75;
   font-variant-ligatures: none;
   tab-size: 4;
@@ -1204,8 +1204,8 @@ button:disabled:hover {
   border-radius: 8px;
 }
 .prose {
-  font-family: var(--font-reading);
-  font-size: 18px;
+  font-family: var(--preview-font-family, var(--font-reading));
+  font-size: var(--preview-font-size, 16px);
   line-height: 1.8;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -1263,7 +1263,7 @@ button:disabled:hover {
   padding: 18px;
   border-radius: 6px;
   font-family: var(--font-code);
-  font-size: 14px;
+  font-size: 0.875em;
   line-height: 1.75;
   overflow: auto;
 }
@@ -1484,13 +1484,13 @@ button:disabled:hover {
   padding: 25px;
 }
 .settings-dialog {
-  width: min(680px, 100%);
+  width: min(720px, 100%);
   max-height: calc(100dvh - 50px);
   overflow: auto;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 18px 26px;
+  padding: 16px 26px;
   font-size: 13px;
   line-height: 1.5;
   box-shadow: 0 25px 90px #14132530;
@@ -1501,14 +1501,14 @@ button:disabled:hover {
   align-items: flex-start;
 }
 .dialog-header h2 {
-  font-size: 23px;
+  font-size: 21px;
   font-weight: 550;
-  margin: 8px 0 0;
+  margin: 4px 0 0;
 }
 .settings-dialog h3 {
   font-size: 12px;
   font-weight: 550;
-  margin: 14px 0 8px;
+  margin: 10px 0 8px;
 }
 .theme-options {
   display: flex;
@@ -1517,7 +1517,7 @@ button:disabled:hover {
 .theme-options > button {
   flex: 1;
   border: 1px solid var(--line);
-  padding: 12px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1530,11 +1530,16 @@ button:disabled:hover {
   color: var(--accent);
   background: var(--bg);
 }
+.settings-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
 .setting-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 7px 0;
   gap: 18px;
   border-bottom: 1px solid var(--line);
 }
@@ -1580,13 +1585,14 @@ button:disabled:hover {
   justify-content: space-between;
   font-size: 11px;
   gap: 10px;
-  padding: 5px 0;
+  padding: 3px 0;
   color: var(--muted);
 }
 .shortcuts kbd {
   font-size: 10px;
   text-align: right;
   overflow-wrap: anywhere;
+  padding: 1px 5px;
 }
 .shortcut-editors {
   display: grid;
@@ -1634,12 +1640,13 @@ button:disabled:hover {
 }
 @media (max-width: 580px) {
   .shortcut-editors,
+  .settings-toggles,
   .shortcuts {
     grid-template-columns: 1fr;
   }
 }
 .mac-permissions {
-  padding: 9px 12px;
+  padding: 7px 12px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -1647,7 +1654,7 @@ button:disabled:hover {
   line-height: 1.6;
 }
 .mac-permissions p {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   color: var(--muted);
 }
 .mac-permissions button {
@@ -1661,7 +1668,7 @@ button:disabled:hover {
   gap: 10px;
   background: var(--bg);
   padding: 12px;
-  margin-top: 14px;
+  margin-top: 10px;
   border-radius: 6px;
   color: var(--muted);
   font-size: 10px;
@@ -1672,6 +1679,34 @@ button:disabled:hover {
 }
 .settings-note svg {
   margin-top: 2px;
+}
+.preview-adjustment {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 4px 20px #14132516;
+  font-family: var(--font-reading);
+  font-size: 14px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.preview-adjustment > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.preview-adjustment > strong {
+  font-weight: 550;
 }
 .toast {
   position: fixed;
@@ -1984,13 +2019,14 @@ button:disabled:hover {
   border-spacing: 0;
   table-layout: fixed;
   min-width: 100%;
-  font-size: 14px;
+  font-size: var(--preview-font-size, 16px);
+  font-family: var(--preview-font-family, var(--font-reading));
 }
 .workbook-table th,
 .workbook-table td {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  height: 32px;
+  height: var(--workbook-row-height, 32px);
   min-width: 130px;
   max-width: 230px;
   padding: 0 12px;
@@ -2080,6 +2116,8 @@ button:disabled:hover {
   padding: 18px;
 }
 .slide-paper {
+  font-size: var(--preview-font-size, 16px);
+  font-family: var(--preview-font-family, var(--font-reading));
   background: var(--panel);
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
@@ -2090,7 +2128,7 @@ button:disabled:hover {
 }
 .slide-paper h1 {
   white-space: pre-wrap;
-  font-size: 30px;
+  font-size: 1.875em;
   line-height: 1.6;
   font-weight: 550;
   margin: 25px 0;
@@ -2098,7 +2136,7 @@ button:disabled:hover {
 }
 .slide-paper p {
   white-space: pre-wrap;
-  font-size: 18px;
+  font-size: 1em;
   line-height: 1.9;
   overflow-wrap: anywhere;
 }
@@ -2179,8 +2217,8 @@ button:disabled:hover {
   padding: 22px 0;
 }
 .plain-text .code-scroll pre {
-  font-family: var(--font-reading);
-  font-size: 18px;
+  font-family: var(--preview-font-family, var(--font-reading));
+  font-size: var(--preview-font-size, 16px);
   line-height: 1.95;
 }
 .plain-text .code-line {
@@ -2879,6 +2917,236 @@ button:disabled:hover {
 }
 
 /* Preview controls stay in the More menu; document navigation stays in its pane. */
+.font-preview {
+  height: 100%;
+  overflow: auto;
+  background: var(--bg);
+  padding: 28px;
+}
+.font-paper {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.font-paper h1,
+.mail-header h1 {
+  margin: 0 0 22px;
+  font-size: 23px;
+  font-weight: 600;
+}
+.font-paper h2 {
+  margin: 30px 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.font-paper textarea {
+  width: 100%;
+  min-height: 230px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  line-height: 1.8;
+  background: transparent;
+  color: var(--text);
+}
+.font-glyphs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+}
+.font-glyphs span {
+  padding: 12px 4px;
+  text-align: center;
+  border: 1px solid var(--line);
+  font-size: 26px;
+}
+.database-preview {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+.database-tables {
+  width: 190px;
+  flex-shrink: 0;
+  padding: 14px 8px;
+  overflow: auto;
+  border-right: 1px solid var(--line);
+}
+.database-tables h2 {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin: 5px 8px 12px;
+}
+.database-tables button {
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  margin-bottom: 3px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  background: transparent;
+  overflow-wrap: anywhere;
+}
+.database-tables button:hover,
+.database-tables button.active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.database-tables small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.database-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+.database-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--preview-font-size, 16px);
+  font-family: var(--preview-font-family, var(--font-reading));
+}
+.database-grid th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  font-weight: 500;
+}
+.database-grid th,
+.database-grid td {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+  max-width: 480px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.database-grid tbody tr:nth-child(even) {
+  background: var(--bg);
+}
+.database-schema {
+  padding: 24px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--preview-font-size, 16px);
+  font-family: var(--preview-code-family, var(--font-code));
+}
+.mail-preview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.mail-header {
+  padding: 22px 30px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  max-height: 40%;
+  overflow: auto;
+  flex-shrink: 0;
+}
+.mail-header h1 {
+  margin-bottom: 16px;
+}
+.mail-header dl {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 6px 12px;
+  font-size: 12px;
+  margin: 0;
+}
+.mail-header dt {
+  color: var(--muted);
+}
+.mail-header dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.mail-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.mail-attachments button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+  max-width: 100%;
+}
+.mail-attachments span {
+  overflow-wrap: anywhere;
+}
+.mail-attachments small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.mail-preview .html-preview {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+.mail-text {
+  margin: 0;
+  padding: 26px 30px;
+  font-size: var(--preview-font-size, 16px);
+  font-family: var(--preview-font-family, var(--font-reading));
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow: auto;
+}
+.diagram-preview,
+.animation-preview {
+  height: 100%;
+  min-height: 0;
+  position: relative;
+}
+.diagram-scroll {
+  height: 100%;
+  overflow: auto;
+  padding: 30px;
+}
+.diagram-scroll > div {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+}
+.diagram-scroll svg {
+  max-width: 100%;
+  height: auto;
+}
+.animation-canvas {
+  height: 100%;
+  padding: 30px;
+  display: grid;
+  place-items: center;
+}
+.animation-canvas svg {
+  max-width: 100%;
+  max-height: 100%;
+}
+.animation-preview > .preview-message {
+  position: absolute;
+  inset: 0;
+}
 .has-preview .titlebar {
   gap: 10px;
   padding: 0 8px;
@@ -2924,6 +3192,9 @@ button:disabled:hover {
 .preview-menu-options .content-toolbar > button {
   justify-content: flex-start;
   width: 100%;
+}
+.metafile-preview .preview-image {
+  background: #fff;
 }
 .preview-menu-options select {
   min-width: 0;

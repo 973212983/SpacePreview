@@ -85,7 +85,7 @@ try {
   await back('word.docx');
   await open('notes.txt');
   await expect(page.locator('.code-scroll')).toContainText('压缩包内文本内容');
-  await menuOptions(1);
+  await menuOptions(3);
   await back('notes.txt');
   await menuOptions(0);
   await open('code.ts');
@@ -95,9 +95,19 @@ try {
   await expect(page.locator('.workbook-preview')).toContainText('预览');
   await back('table.csv');
   await open('page.html');
+  await expect(page.locator('.code-scroll')).toContainText('<h1>ZIP 网页内容</h1>');
+  await page.getByTitle('更多选项', { exact: true }).click();
+  await expect(page.getByLabel('HTML 视图')).toHaveValue('source');
+  await page.getByLabel('HTML 视图').selectOption('web');
+  await page.getByLabel('关闭更多选项').click({ position: { x: 10, y: 100 } });
   await expect(page.frameLocator('iframe[title="HTML 网页预览"]').locator('body')).toContainText(
     'ZIP 网页内容',
   );
+  await page.getByTitle('更多选项', { exact: true }).click();
+  await page.getByLabel('HTML 视图').selectOption('source');
+  await page.getByLabel('关闭更多选项').click({ position: { x: 10, y: 100 } });
+  await expect(page.locator('.code-scroll')).toContainText('<h1>ZIP 网页内容</h1>');
+  await expect(page.locator('iframe[title="HTML 网页预览"]')).toHaveCount(0);
   await back('page.html');
   await open('document.pdf');
   await page.getByTitle('更多选项', { exact: true }).click();

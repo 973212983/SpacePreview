@@ -3,6 +3,7 @@ dist/
 release/
 release-assets/
 public/pdfjs/
+public/engines/
 src-tauri/target/
 test-results/
 *.log

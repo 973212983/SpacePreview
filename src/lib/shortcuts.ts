@@ -31,7 +31,7 @@ export function validShortcut(value: unknown): value is Shortcut {
   return (
     Object.hasOwn(keys, s.code) &&
     [s.ctrl, s.alt, s.meta].every((v) => typeof v === 'boolean') &&
-    !(s.code === 'KeyO' && (s.ctrl || s.meta) && !s.alt)
+    !(['KeyO', 'KeyC', 'Equal', 'Minus'].includes(s.code) && (s.ctrl || s.meta) && !s.alt)
   );
 }
 

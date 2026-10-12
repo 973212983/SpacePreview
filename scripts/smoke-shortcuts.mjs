@@ -13,6 +13,7 @@ try {
       let id = 0;
       window.isTauri = true;
       window.nativeCalls = [];
+      window.nativeAutostartEnabled = false;
       window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
       window.__TAURI_INTERNALS__ = {
         metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
@@ -22,6 +23,12 @@ try {
         unregisterCallback() {},
         async invoke(command, args) {
           window.nativeCalls.push({ command, args });
+          if (command === 'autostart_enabled') return window.nativeAutostartEnabled;
+          if (command === 'set_autostart') {
+            if (window.failAutostart) throw new Error('模拟自启动设置失败');
+            window.nativeAutostartEnabled = args.enabled;
+            return window.nativeAutostartEnabled;
+          }
           if (command === 'agent_status')
             return {
               supported: true,
@@ -44,10 +51,34 @@ try {
     };
     await openSettings();
     await expect(page.locator('.settings-dialog')).toBeVisible();
+    const autostart = page.getByRole('switch', { name: '开机自启动', exact: true });
+    await expect(autostart).toBeEnabled();
+    await expect(autostart).toHaveAttribute('aria-checked', 'false');
     if (platform === 'macos') await expect(page.locator('.mac-permissions')).toBeVisible();
     expect(
       await page.locator('.settings-dialog').evaluate((e) => e.scrollHeight <= e.clientHeight + 1),
     ).toBe(true);
+    await autostart.click();
+    await expect(autostart).toHaveAttribute('aria-checked', 'true');
+    await page.getByRole('button', { name: '关闭设置', exact: true }).click();
+    await openSettings();
+    await expect(autostart).toHaveAttribute('aria-checked', 'true');
+    await page.evaluate(() => {
+      window.failAutostart = true;
+    });
+    await autostart.click();
+    await expect(page.locator('.toast')).toContainText('模拟自启动设置失败');
+    await expect(autostart).toHaveAttribute('aria-checked', 'true');
+    await page.evaluate(() => {
+      window.failAutostart = false;
+    });
+    await autostart.click();
+    await expect(autostart).toHaveAttribute('aria-checked', 'false');
+    expect(
+      await page.evaluate(
+        () => window.nativeCalls.filter((c) => c.command === 'set_autostart').at(-1).args,
+      ),
+    ).toEqual({ enabled: false });
     const target = platform === 'macos' ? 'macOS' : 'Windows';
     const record = page.getByRole('button', { name: `修改 ${target} 预览快捷键`, exact: true });
     await record.click();
@@ -56,6 +87,13 @@ try {
     await page.keyboard.press('Escape');
     await expect(page.locator('.settings-dialog')).toBeVisible();
     await expect(record).toHaveText('Space');
+    for (const key of ['Control+c', 'Control+=', 'Control+-', 'Meta+c', 'Meta+=', 'Meta+-']) {
+      await record.click();
+      await page.keyboard.press(key);
+      await expect(page.getByRole('alert')).toContainText('保留给复制和字号操作');
+      await page.keyboard.press('Escape');
+      await expect(record).toHaveText('Space');
+    }
     await record.click();
     await page.keyboard.press('F8');
     await expect(record).toHaveText('F8');
@@ -129,6 +167,11 @@ try {
       ['安全阅读.html', 'iframe[title="HTML 网页预览"]'],
     ]) {
       await openFile(name);
+      if (name.endsWith('.html')) {
+        await page.getByTitle('更多选项', { exact: true }).click();
+        await page.getByLabel('HTML 视图').selectOption('web');
+        await page.getByLabel('关闭更多选项').click({ position: { x: 10, y: 100 } });
+      }
       await expect(page.locator(frame)).toBeVisible();
       if (name.endsWith('.docx'))
         await expect(page.frameLocator(frame).locator('section.docx')).toHaveCount(2, {

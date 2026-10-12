@@ -7,7 +7,7 @@ import type { WorkbookSheet, WorkerResult } from './worker-types';
 export function readDelimited(bytes: Uint8Array, name: string): WorkbookSheet {
   const { text: decoded } = decodeText(bytes);
   const text = decoded.replace(/^\uFEFF/, '');
-  let delimiter = extension(name) === 'csv' ? ',' : '\t';
+  let delimiter = extension(name) === 'csv' ? ',' : extension(name) === 'psv' ? '|' : '\t';
   if (delimiter === ',') {
     let quoted = false;
     let commas = 0,

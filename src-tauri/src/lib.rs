@@ -9,8 +9,10 @@ use std::{
 };
 use tauri::{Emitter, Manager, State};
 
+mod autostart;
 mod diagnostics;
 mod shortcut;
+use autostart::{autostart_enabled, set_autostart};
 
 #[tauri::command]
 fn trace_preview(stage: String) {
@@ -195,7 +197,11 @@ async fn render_presentation(
         .unwrap_or_default()
         .to_string_lossy()
         .to_lowercase();
-    if !["pptx", "pptm", "potx", "potm", "ppsx", "ppsm"].contains(&extension.as_str()) {
+    if ![
+        "pptx", "pptm", "potx", "potm", "ppsx", "ppsm", "ppt", "pps", "pot",
+    ]
+    .contains(&extension.as_str())
+    {
         return Err("此文件不是支持的 PowerPoint 文稿。".into());
     }
     #[cfg(windows)]
@@ -343,8 +349,48 @@ fn open_default(path: String, state: State<PreviewState>) -> Result<(), String> 
         .to_string_lossy()
         .to_lowercase();
     if [
-        "exe", "com", "bat", "cmd", "ps1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "msi", "scr",
-        "lnk", "url", "sh", "command", "app",
+        "exe",
+        "com",
+        "bat",
+        "cmd",
+        "ps1",
+        "vbs",
+        "vbe",
+        "js",
+        "jse",
+        "wsf",
+        "wsh",
+        "msi",
+        "scr",
+        "lnk",
+        "url",
+        "sh",
+        "command",
+        "app",
+        "py",
+        "pyw",
+        "pyc",
+        "pyo",
+        "pyz",
+        "mjs",
+        "cjs",
+        "psm1",
+        "rb",
+        "rbw",
+        "pl",
+        "php",
+        "lua",
+        "jar",
+        "jnlp",
+        "hta",
+        "reg",
+        "cpl",
+        "msc",
+        "msp",
+        "msix",
+        "msixbundle",
+        "appx",
+        "appxbundle",
     ]
     .contains(&ext.as_str())
     {
@@ -397,6 +443,9 @@ fn show_preview_files(app: &tauri::AppHandle, paths: Vec<String>, text: bool) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            if autostart::background_launch(&args) {
+                return;
+            }
             let text = args.iter().any(|a| a == "--text");
             let paths = argument_paths(args.into_iter().skip(1));
             show_preview_files(app, paths, text);
@@ -412,6 +461,8 @@ pub fn run() {
             list_siblings,
             open_default,
             initial_paths,
+            autostart_enabled,
+            set_autostart,
             agent_status,
             trace_preview,
             hide_preview,
@@ -420,6 +471,7 @@ pub fn run() {
             request_agent_permissions
         ])
         .setup(|app| {
+            app.manage(autostart::configure()?);
             diagnostics::start();
             #[cfg(windows)]
             windows_agent::start(app.handle().clone());
@@ -454,6 +506,12 @@ pub fn run() {
                 _ => (),
             })
             .build(app)?;
+            if !autostart::background_launch(&std::env::args().collect::<Vec<_>>()) {
+                if let Some(window) = app.get_webview_window("main") {
+                    window.show()?;
+                    window.set_focus()?;
+                }
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

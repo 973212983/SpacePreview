@@ -22,6 +22,19 @@ export type PreviewKind =
   | 'dxf'
   | 'model'
   | 'tiff'
+  | 'decoded-image'
+  | 'font'
+  | 'database'
+  | 'mail'
+  | 'legacy-xlsx'
+  | 'asciidoc'
+  | 'diagram'
+  | 'animation'
+  | 'thumbnail'
+  | 'web-archive'
+  | 'legacy-doc'
+  | 'legacy-ppt'
+  | 'metafile'
   | 'binary';
 export interface PreviewFile {
   id: string;
@@ -37,16 +50,157 @@ export interface PreviewFile {
 export const engines: { kind: PreviewKind; extensions: string[]; label: string }[] = [
   {
     kind: 'image',
-    extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'],
+    extensions: ['jpg', 'jpeg', 'jfif', 'png', 'apng', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'],
     label: '图像',
   },
   { kind: 'pdf', extensions: ['pdf'], label: 'PDF 文档' },
   { kind: 'dxf', extensions: ['dxf'], label: 'CAD 图纸' },
-  { kind: 'model', extensions: ['stl', 'obj'], label: '三维模型' },
+  {
+    kind: 'model',
+    extensions: [
+      'stl',
+      'obj',
+      'ply',
+      '3ds',
+      'lwo',
+      'fbx',
+      '3mf',
+      'blend',
+      'glb',
+      'gltf',
+      'dae',
+      'pcd',
+      'step',
+      'stp',
+      'iges',
+      'igs',
+      'brep',
+    ],
+    label: '三维模型 / CAD',
+  },
   { kind: 'tiff', extensions: ['tif', 'tiff'], label: 'TIFF 图像' },
-  { kind: 'markdown', extensions: ['md', 'markdown', 'mdx'], label: 'Markdown' },
+  { kind: 'metafile', extensions: ['wmf', 'emf'], label: 'Windows 矢量图像' },
+  {
+    kind: 'decoded-image',
+    extensions: [
+      'psd',
+      'psb',
+      'heic',
+      'heif',
+      'dds',
+      'exr',
+      'hdr',
+      'jp2',
+      'j2k',
+      'jpc',
+      'jpf',
+      'jpx',
+      'jxl',
+      'qoi',
+      'tga',
+      'pcx',
+      'pbm',
+      'pgm',
+      'pnm',
+      'ppm',
+      'pam',
+      'miff',
+      'xbm',
+      'xpm',
+      'fits',
+      'fit',
+      'dcm',
+      'dicom',
+      'cur',
+      'arw',
+      'cr2',
+      'cr3',
+      'crw',
+      'dcr',
+      'dng',
+      'erf',
+      'fff',
+      'iiq',
+      'k25',
+      'kdc',
+      'mdc',
+      'mef',
+      'mos',
+      'mrw',
+      'nef',
+      'nrw',
+      'orf',
+      'pef',
+      'raf',
+      'rw2',
+      'rwl',
+      'sr2',
+      'srf',
+      'srw',
+      'x3f',
+      'xcf',
+      'icns',
+      'ani',
+      'svgz',
+    ],
+    label: '专业图像',
+  },
+  { kind: 'font', extensions: ['ttf', 'otf', 'woff', 'woff2', 'ttc'], label: '字体文件' },
+  {
+    kind: 'database',
+    extensions: [
+      'sqlite',
+      'sqlite3',
+      'db',
+      'db3',
+      'sdb',
+      's3db',
+      'sl3',
+      'sqlitedb',
+      'gpkg',
+      'mbtiles',
+    ],
+    label: 'SQLite 数据库',
+  },
+  { kind: 'mail', extensions: ['eml', 'msg'], label: '邮件' },
+  {
+    kind: 'legacy-xlsx',
+    extensions: ['xls', 'xlsb', 'xlt', 'xlw', 'dbf', 'dif', 'sylk', 'slk'],
+    label: 'Excel / 数据表',
+  },
+  { kind: 'asciidoc', extensions: ['adoc', 'asciidoc', 'ad'], label: 'AsciiDoc 文档' },
+  { kind: 'diagram', extensions: ['mermaid', 'mmd', 'dot', 'gv'], label: '图表' },
+  { kind: 'animation', extensions: ['lottie', 'tgs'], label: 'Lottie 动画' },
+  {
+    kind: 'thumbnail',
+    extensions: ['kra', 'sketch', 'xd', 'xmind', 'fig', 'pix', 'pip', 'cdr', 'pdn'],
+    label: '设计文档预览图',
+  },
+  {
+    kind: 'markdown',
+    extensions: [
+      'md',
+      'markdown',
+      'mdx',
+      'mmd',
+      'mdc',
+      'mkd',
+      'mdwn',
+      'mdown',
+      'qmd',
+      'rmd',
+      'rmarkdown',
+      'apib',
+      'mdtxt',
+      'mdtext',
+    ],
+    label: 'Markdown',
+  },
   { kind: 'docx', extensions: ['docx', 'docm', 'dotx', 'dotm'], label: 'Word 文档' },
+  { kind: 'legacy-doc', extensions: ['doc', 'dot'], label: 'Word 97–2003 文档' },
+  { kind: 'legacy-ppt', extensions: ['ppt', 'pps', 'pot'], label: 'PowerPoint 97–2003 文稿' },
   { kind: 'html', extensions: ['html', 'htm', 'xhtml'], label: 'HTML 文档' },
+  { kind: 'web-archive', extensions: ['mht', 'mhtml'], label: '网页存档' },
   { kind: 'rtf', extensions: ['rtf'], label: 'RTF 富文本' },
   { kind: 'xlsx', extensions: ['xlsx', 'xlsm', 'xltx', 'xltm'], label: 'Excel 工作簿' },
   {
@@ -54,7 +208,7 @@ export const engines: { kind: PreviewKind; extensions: string[]; label: string }
     extensions: ['pptx', 'pptm', 'potx', 'potm', 'ppsx', 'ppsm'],
     label: 'PowerPoint 文稿',
   },
-  { kind: 'csv', extensions: ['csv', 'tsv', 'tab'], label: '分隔符表格' },
+  { kind: 'csv', extensions: ['csv', 'tsv', 'tab', 'psv'], label: '分隔符表格' },
   { kind: 'odt', extensions: ['odt', 'ott'], label: 'OpenDocument 文档' },
   { kind: 'ods', extensions: ['ods', 'ots'], label: 'OpenDocument 表格' },
   { kind: 'odp', extensions: ['odp', 'otp'], label: 'OpenDocument 演示' },
@@ -65,8 +219,57 @@ export const engines: { kind: PreviewKind; extensions: string[]; label: string }
   { kind: 'audio', extensions: ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'], label: '音频' },
   {
     kind: 'archive',
-    extensions: ['zip', 'jar', 'apk', 'ipa', 'cbz', 'whl', 'nupkg', 'vsix', 'xpi'],
-    label: 'ZIP 压缩包',
+    extensions: [
+      'zip',
+      'jar',
+      'apk',
+      'ipa',
+      'cbz',
+      'whl',
+      'nupkg',
+      'snupkg',
+      'vsix',
+      'xpi',
+      'egg',
+      'pyz',
+      '7z',
+      'rar',
+      'tar',
+      'tgz',
+      'gz',
+      'bz2',
+      'xz',
+      'lz',
+      'lzma',
+      'zst',
+      'zstd',
+      'cb7',
+      'cbr',
+      'cbt',
+      'iso',
+      'xar',
+      'cpio',
+      'ar',
+      'deb',
+      'asar',
+      'crx',
+      'cfb',
+      'eif',
+      'pak',
+      'msi',
+      'msp',
+      'appx',
+      'appxbundle',
+      'msix',
+      'msixbundle',
+      'aab',
+      'hap',
+      'wgt',
+      'wgtu',
+      'qlplugin',
+      'ddeb',
+    ],
+    label: '压缩包 / 容器',
   },
   {
     kind: 'text',
@@ -174,6 +377,7 @@ export const engines: { kind: PreviewKind; extensions: string[]; label: string }
 ];
 export const extension = (name: string) => name.split('.').pop()!.toLowerCase();
 export function detectKind(name: string): PreviewKind {
+  if (/\.lottie\.json$/i.test(name)) return 'animation';
   if (
     sourceLanguage(name) !== 'plaintext' &&
     /^(?:dockerfile\.|containerfile\.|\.env\.)/i.test(name)
@@ -186,8 +390,13 @@ export function previewMime(name: string): string {
   const kind = detectKind(name);
   if (kind === 'image')
     return (
-      { svg: 'image/svg+xml', jpg: 'image/jpeg', ico: 'image/vnd.microsoft.icon' }[ext] ??
-      `image/${ext}`
+      {
+        svg: 'image/svg+xml',
+        jpg: 'image/jpeg',
+        jfif: 'image/jpeg',
+        apng: 'image/png',
+        ico: 'image/vnd.microsoft.icon',
+      }[ext] ?? `image/${ext}`
     );
   if (kind === 'audio') return { mp3: 'audio/mpeg', m4a: 'audio/mp4' }[ext] ?? `audio/${ext}`;
   if (kind === 'video')
@@ -199,30 +408,9 @@ export function previewMime(name: string): string {
 }
 export function unsupportedFormatHint(name: string): string | undefined {
   const ext = extension(name);
-  if (['doc', 'xls', 'ppt'].includes(ext))
-    return '这是旧版 Office 格式，尚未接入专用引擎。可另存为 DOCX/XLSX/PPTX 后预览，或使用底部默认应用打开。';
-  if (['rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz', 'zst'].includes(ext))
-    return '此压缩格式尚未接入目录与解压引擎。当前支持 ZIP/ZIP64 及兼容容器，可使用底部默认应用打开此文件。';
-  if (['heic', 'heif', 'raw', 'cr2', 'cr3', 'nef', 'arw', 'dng', 'psd', 'ai'].includes(ext))
+  if (['raw', 'ai'].includes(ext))
     return '此图片格式需要专用解码器，目前仅显示文件信息。请使用默认应用查看。';
-  if (['sqlite', 'sqlite3', 'db'].includes(ext))
-    return '数据库尚未支持表结构与记录预览，目前仅显示文件信息。';
-  if (
-    [
-      'dwg',
-      'dwt',
-      'dws',
-      'step',
-      'stp',
-      'iges',
-      'igs',
-      '3ds',
-      'max',
-      'blend',
-      'sldprt',
-      'sldasm',
-    ].includes(ext)
-  )
+  if (['dwg', 'dwt', 'dws', 'max', 'sldprt', 'sldasm'].includes(ext))
     return '此工程格式尚未接入专用引擎。二维图纸可导出 DXF，三维模型可导出 STL/OBJ 后预览，或使用底部默认应用打开。';
 }
 export function formatSize(bytes: number) {
@@ -272,13 +460,18 @@ export function decodeText(bytes: Uint8Array, selected: TextEncoding = 'auto', p
   }
 }
 
+export function hasBinarySignature(bytes: Uint8Array): boolean {
+  const hex = Array.from(bytes.slice(0, 8), (b) => b.toString(16).padStart(2, '0')).join('');
+  return /^(4d5a|7f454c46|d0cf11e0|53514c697465|52617221|377abcaf)/.test(hex);
+}
+
 export function sniffKind(bytes: Uint8Array): PreviewKind {
   const hex = Array.from(bytes.slice(0, 8), (b) => b.toString(16).padStart(2, '0')).join('');
   if (hex.startsWith('25504446')) return 'pdf';
   if (hex.startsWith('7b5c727466')) return 'rtf';
   if (/^(89504e47|ffd8ff|47494638|424d)/.test(hex)) return 'image';
   if (hex.startsWith('504b0304')) return 'archive';
-  if (/^(4d5a|7f454c46|d0cf11e0|53514c697465|52617221|377abcaf)/.test(hex)) return 'binary';
+  if (hasBinarySignature(bytes)) return 'binary';
   const { text } = decodeText(bytes, 'auto', true);
   if (/^\s*(?:<!doctype\s+html|<html\b)/i.test(text)) return 'html';
   if (!text) return bytes.length ? 'binary' : 'text';

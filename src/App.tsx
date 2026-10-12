@@ -30,6 +30,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import Preview from './components/Preview';
 import { PreviewMenuTarget } from './components/PreviewToolbar';
+import { TextAppearanceProvider } from './components/TextAppearance';
 import { desktop, inspectPath, openDefault, pickNativeFiles, siblings } from './lib/bridge';
 import { detectKind, formatSize, fromBrowser, type PreviewFile } from './lib/files';
 import { samples } from './lib/samples';
@@ -99,6 +100,8 @@ export default function App() {
   const macos = agent?.platform === 'macos' || /Mac/i.test(navigator.platform);
   const fileManager = macos ? 'Finder' : '资源管理器';
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [autostart, setAutostart] = useState<boolean | null>(null);
+  const [autostartBusy, setAutostartBusy] = useState(false);
   const [recording, setRecording] = useState<'windowsShortcut' | 'macosShortcut' | null>(null);
   const [shortcutError, setShortcutError] = useState('');
   const shortcut = macos ? settings.macosShortcut : settings.windowsShortcut;
@@ -112,9 +115,42 @@ export default function App() {
   const [archiveStack, setArchiveStack] = useState<PreviewFile[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const request = useRef(0);
+  const choosing = useRef(false);
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[index];
+  useEffect(() => {
+    if (!desktop || !settingsOpen) return;
+    let cancelled = false;
+    setAutostartBusy(true);
+    void invoke<boolean>('autostart_enabled')
+      .then((enabled) => {
+        if (!cancelled) setAutostart(enabled);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setAutostart(null);
+          setToast(`读取开机自启动状态失败：${String(error)}`);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAutostartBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [settingsOpen]);
+  const toggleAutostart = async () => {
+    if (autostart === null || autostartBusy) return;
+    setAutostartBusy(true);
+    try {
+      setAutostart(await invoke<boolean>('set_autostart', { enabled: !autostart }));
+    } catch (error) {
+      setToast(`开机自启动设置失败：${String(error)}`);
+    } finally {
+      setAutostartBusy(false);
+    }
+  };
   useEffect(() => {
     if (archiveStack.length < previousArchiveDepth.current)
       document
@@ -243,11 +279,15 @@ export default function App() {
       input.current?.click();
       return;
     }
+    if (choosing.current) return;
+    choosing.current = true;
     try {
       const selected = await pickNativeFiles();
       if (selected.length) await loadPaths(selected.map((f) => f.path!));
     } catch (e) {
       setToast(String(e));
+    } finally {
+      choosing.current = false;
     }
   }, [loadPaths]);
   const closePreview = useCallback(() => {
@@ -273,7 +313,11 @@ export default function App() {
   const openFile = useCallback(async () => {
     if (!file) return;
     if (!file.path) {
-      setToast('浏览器和内置示例无法调用系统默认应用，请使用桌面版打开本地文件。');
+      setToast(
+        desktop
+          ? '当前预览没有本地路径，请先保存或解压到磁盘，再使用默认应用打开。'
+          : '浏览器无法调用系统默认应用，请使用桌面版打开本地文件。',
+      );
       return;
     }
     try {
@@ -286,7 +330,7 @@ export default function App() {
     if (!file) return;
     try {
       await navigator.clipboard.writeText(file.path ?? file.name);
-      setToast(file.path ? '文件路径已复制' : '文件名已复制（浏览器不提供完整路径）');
+      setToast(file.path ? '文件路径已复制' : '文件名已复制（当前预览没有本地路径）');
     } catch {
       setToast('剪贴板不可用，请在桌面版中重试。');
     }
@@ -311,6 +355,7 @@ export default function App() {
         trace('native-close');
         request.current++;
         setFiles([]);
+        setArchiveStack([]);
         setIndex(0);
         setOpening(false);
       }),
@@ -340,13 +385,13 @@ export default function App() {
     let stop: (() => void) | undefined;
     void getCurrentWindow()
       .onFocusChanged((e) => {
-        if (!e.payload && !disposed) {
+        if (!e.payload && !disposed && !choosing.current) {
           const version = request.current;
           // A queued blur from hiding the previous preview must not close a new one.
           void getCurrentWindow()
             .isFocused()
             .then((focused) => {
-              if (!focused && !disposed && version === request.current) {
+              if (!focused && !disposed && !choosing.current && version === request.current) {
                 trace('blur-close');
                 closePreview();
               }
@@ -365,6 +410,7 @@ export default function App() {
   }, [settings.closeOnBlur, settingsOpen, file, closePreview]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (recording) {
         event.preventDefault();
         event.stopPropagation();
@@ -378,7 +424,7 @@ export default function App() {
         const next = shortcutFromEvent(event);
         if (!next) {
           setShortcutError(
-            '使用字母、数字、符号、F1–F12 或 Space，可组合 Ctrl / Alt / ⌘。Shift 保留为纯文本预览；Ctrl / ⌘ + O 用于选择文件。',
+            '使用字母、数字、符号、F1–F12 或 Space，可组合 Ctrl / Alt / ⌘。Shift 保留为纯文本预览；Ctrl / ⌘ + O 用于选择文件，Ctrl / ⌘ + C、加减号保留给复制和字号操作。',
           );
           return;
         }
@@ -412,6 +458,7 @@ export default function App() {
         matchesShortcut(event, shortcut) &&
         !(
           shortcut.code === 'Space' &&
+          !event.shiftKey &&
           event.target instanceof HTMLElement &&
           event.target.closest('button')
         )
@@ -425,16 +472,23 @@ export default function App() {
         return;
       }
       if (!file) return;
-      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      const plainKey = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
+      if (plainKey && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
         event.preventDefault();
         navigate(event.key === 'ArrowRight' ? 1 : -1);
       }
       if (
         event.key === 'Enter' &&
+        plainKey &&
         !(event.target instanceof HTMLElement && event.target.closest('button'))
       )
         void openFile();
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'c') {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        event.shiftKey &&
+        event.key.toLowerCase() === 'c'
+      ) {
         event.preventDefault();
         void copyPath();
       }
@@ -689,16 +743,20 @@ export default function App() {
           {[files[index], ...archiveStack].map((item, depth) => (
             <div className="preview-layer" hidden={depth !== archiveStack.length} key={item.id}>
               <PreviewMenuTarget.Provider value={depth === archiveStack.length ? menuTarget : null}>
-                <Preview
-                  key={`${item.id}:${depth === archiveStack.length ? mode : 'auto'}`}
-                  file={item}
-                  mode={depth === archiveStack.length ? mode : 'auto'}
-                  onOpen={(inside) => {
-                    request.current++;
-                    setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
-                    setMode('auto');
-                  }}
-                />
+                <TextAppearanceProvider
+                  active={depth === archiveStack.length && !settingsOpen && !recording}
+                >
+                  <Preview
+                    key={`${item.id}:${depth === archiveStack.length ? mode : 'auto'}`}
+                    file={item}
+                    mode={depth === archiveStack.length ? mode : 'auto'}
+                    onOpen={(inside) => {
+                      request.current++;
+                      setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
+                      setMode('auto');
+                    }}
+                  />
+                </TextAppearanceProvider>
               </PreviewMenuTarget.Provider>
             </div>
           ))}
@@ -814,7 +872,7 @@ export default function App() {
             <span className="status-dot muted" /> 全部在本地发生
           </span>
           <span>
-            SPACEPREVIEW <b>·</b> v0.9.13
+            SPACEPREVIEW <b>·</b> v0.10.6
           </span>
           <span>为「只想看一眼」而设计</span>
         </footer>
@@ -856,36 +914,64 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div className="setting-row">
-              <div>
-                <strong>失去焦点时关闭</strong>
-                <p>{desktop ? '切换到其他应用时隐藏预览窗口' : '仅在桌面版中生效'}</p>
+            <div className="settings-toggles">
+              <div className="setting-row">
+                <div>
+                  <strong>失去焦点时关闭</strong>
+                  <p>{desktop ? '切换到其他应用时隐藏预览窗口' : '仅在桌面版中生效'}</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={settings.closeOnBlur}
+                  aria-label="失去焦点时关闭"
+                  disabled={!desktop}
+                  className={`switch ${settings.closeOnBlur ? 'on' : ''}`}
+                  onClick={() => setSettings((s) => ({ ...s, closeOnBlur: !s.closeOnBlur }))}
+                >
+                  <span />
+                </button>
               </div>
-              <button
-                role="switch"
-                aria-checked={settings.closeOnBlur}
-                aria-label="失去焦点时关闭"
-                disabled={!desktop}
-                className={`switch ${settings.closeOnBlur ? 'on' : ''}`}
-                onClick={() => setSettings((s) => ({ ...s, closeOnBlur: !s.closeOnBlur }))}
-              >
-                <span />
-              </button>
+              <div className="setting-row">
+                <div>
+                  <strong>开机自启动</strong>
+                  <p>
+                    {!desktop
+                      ? '仅在桌面版中生效'
+                      : autostartBusy
+                        ? '正在同步系统启动设置…'
+                        : autostart === null
+                          ? '无法读取状态，请重新打开设置'
+                          : `登录后在${macos ? '菜单栏' : '托盘'}运行，不弹出预览窗口`}
+                  </p>
+                </div>
+                <button
+                  role="switch"
+                  aria-label="开机自启动"
+                  aria-checked={autostart === true}
+                  disabled={!desktop || autostart === null || autostartBusy}
+                  className={`switch ${autostart ? 'on' : ''}`}
+                  onClick={() => void toggleAutostart()}
+                >
+                  <span />
+                </button>
+              </div>
             </div>
             {desktop && agent?.supported && (
               <div className="setting-row">
                 <div>
                   <strong>{fileManager} 快捷键预览</strong>
                   <p>
-                    {agent.running
-                      ? `原生监听已运行 · 支持 ${fileManager} 与桌面`
-                      : macos
-                        ? !agent.accessibility
-                          ? '请授权辅助功能，才能接收 Finder 的预览快捷键'
-                          : !agent.automation
-                            ? '请允许瞬览读取 Finder 中选中的文件'
-                            : '键盘监听未就绪，请检查权限后重启瞬览'
-                        : '原生监听未启动，请重新启动瞬览'}
+                    {!settings.spaceEnabled
+                      ? '快捷键预览已关闭，可选择文件或拖入预览'
+                      : agent.running
+                        ? `原生监听已运行 · 支持 ${fileManager} 与桌面`
+                        : macos
+                          ? !agent.accessibility
+                            ? '请授权辅助功能，才能接收 Finder 的预览快捷键'
+                            : !agent.automation
+                              ? '请允许瞬览读取 Finder 中选中的文件'
+                              : '键盘监听未就绪，请检查权限后重启瞬览'
+                          : '原生监听未启动，请重新启动瞬览'}
                   </p>
                 </div>
                 <button
@@ -899,7 +985,7 @@ export default function App() {
                 </button>
               </div>
             )}
-            {desktop && macos && agent?.supported && !agent.running && (
+            {desktop && macos && settings.spaceEnabled && agent?.supported && !agent.running && (
               <div className="mac-permissions">
                 <p>
                   系统设置 → 隐私与安全性：在「辅助功能」中启用瞬览， 并在「自动化」中允许控制
@@ -969,6 +1055,8 @@ export default function App() {
                 ['纯文本预览', `Shift + ${previewKey}`],
                 ['复制路径', 'Ctrl / ⌘ + Shift + C'],
                 ['默认应用打开', 'Enter'],
+                ['增大 / 减小文字', 'Ctrl / ⌘ + + / −'],
+                ['滚轮调整文字', 'Ctrl / ⌘ + 滚轮上 / 下'],
               ].map(([label, key]) => (
                 <div key={label}>
                   <span>{label}</span>
@@ -976,12 +1064,16 @@ export default function App() {
                 </div>
               ))}
             </div>
+            <p className="shortcut-help">
+              文字默认 16px（10–40px），每次调整 2px；更多菜单可选择字体和字号。Word/RTF 页面、PDF
+              保留原字体，快捷键缩放页面。输入框及媒体控件保留自身按键；Esc 先关闭菜单或设置。
+            </p>
             <div className="settings-note">
               <Info size={16} />
               <p>
                 {desktop
                   ? agent?.supported
-                    ? `瞬览运行时，在 ${fileManager} 或桌面选中文件，按 ${previewKey} 即可预览。${macos ? '首次使用需要系统授权。关闭窗口后仍在菜单栏运行。' : '关闭窗口后仍在托盘运行。'}`
+                    ? `${settings.spaceEnabled && agent.running ? `在 ${fileManager} 或桌面选中文件，按 ${previewKey} 即可预览。` : settings.spaceEnabled ? '系统快捷键尚未就绪，可先选择或拖入文件预览。' : '文件管理器快捷键预览已关闭，可选择或拖入文件预览。'}${macos ? '首次使用需要系统授权。关闭窗口后仍在菜单栏运行。' : '关闭窗口后仍在托盘运行。'}`
                     : '当前系统支持文件选择与拖入，暂未接入文件管理器空格预览。'
                   : '这里可以预览真实文件。资源管理器唤起、默认应用打开和同目录导航，需要桌面版。'}
               </p>

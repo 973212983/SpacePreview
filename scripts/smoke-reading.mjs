@@ -28,11 +28,11 @@ try {
   };
   await open('license.dat');
   await expect(page.locator('.code-scroll')).toContainText('授权状态：有效');
-  await expect(page.locator('.plain-text .code-scroll pre')).toHaveCSS('font-size', '18px');
+  await expect(page.locator('.plain-text .code-scroll pre')).toHaveCSS('font-size', '16px');
   await expect(page.locator('.code-scroll')).toHaveClass(/wrap/);
   await page.screenshot({ path: 'test-results/typography-text.png' });
   await open('editor.ts');
-  await expect(page.locator('.source-code .code-scroll pre')).toHaveCSS('font-size', '15px');
+  await expect(page.locator('.source-code .code-scroll pre')).toHaveCSS('font-size', '16px');
   await expect(page.locator('.code-line code').first()).toHaveCSS('font-family', /JetBrains Mono/);
   await expect(page.locator('.hljs-keyword').first()).toHaveCSS('color', 'rgb(0, 51, 179)');
   await page.screenshot({ path: 'test-results/typography-code.png' });
@@ -126,7 +126,9 @@ try {
   await expect(rtf.locator('body')).toContainText('中文', { timeout: 15000 });
   await expect(rtf.getByText('Bold content', { exact: true })).toHaveCSS('font-weight', '700');
   await open('安全阅读.html');
+  await expect(page.locator('.code-scroll')).toContainText('<h1>HTML 阅读</h1>');
   await openPreviewMenu(page);
+  await page.getByLabel('HTML 视图').selectOption('web');
   await page.getByRole('button', { name: '阅读模式', exact: true }).click();
   await expect(page.locator('.document-paper')).toContainText('保留文档内容');
   await expect(page.locator('.reading-outline nav button')).toHaveText(['HTML 阅读']);

@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PreviewFile } from '../lib/files';
 import { readFullBytes } from '../lib/bridge';
 import { parseInWorker } from '../lib/worker-client';
 import { trackReadingPosition } from '../lib/reading-position';
 import { buildWordOutline } from '../lib/word-outline';
 import { forwardPreviewKey } from '../lib/shortcuts';
+import { forwardPreviewWheel } from '../lib/preview-gestures';
+import { PreviewAdjustmentIndicator, usePreviewGestures } from './TextAppearance';
 import { ReadingLayout, type OutlineItem } from './DocumentReader';
 
 export default function WordPreview({
@@ -22,6 +24,20 @@ export default function WordPreview({
   const [status, setStatus] = useState('正在读取文档…');
   const [error, setError] = useState('');
   const [zoom, setZoom] = useState('fit');
+  const adjusting = usePreviewGestures(
+    useCallback(
+      (direction: number) =>
+        setZoom((current) => {
+          const fitted = parseFloat(
+            frame.current?.contentDocument?.querySelector<HTMLElement>('section.docx')?.style
+              .zoom ?? '1',
+          );
+          const value = current === 'fit' ? fitted : Number(current);
+          return String(Math.max(0.2, Math.min(3, Number((value + direction * 0.1).toFixed(2)))));
+        }),
+      [],
+    ),
+  );
   const [rendered, setRendered] = useState(false);
   const [activeId, setActiveId] = useState('');
   const [pageCount, setPageCount] = useState(0);
@@ -120,6 +136,7 @@ export default function WordPreview({
       // Forward closing/navigation keys from the sandboxed document to the app.
       for (const type of ['keydown', 'keyup'] as const)
         target.addEventListener(type, forwardPreviewKey);
+      target.addEventListener('wheel', forwardPreviewWheel, { passive: false });
       setOutline(headings);
       setStatus('');
       setRendered(true);
@@ -178,6 +195,9 @@ export default function WordPreview({
             </span>
           )}
           <select aria-label="Word 缩放" value={zoom} onChange={(e) => setZoom(e.target.value)}>
+            {!['fit', '0.75', '0.9', '1', '1.25', '1.5', '2'].includes(zoom) && (
+              <option value={zoom}>{Math.round(Number(zoom) * 100)}%</option>
+            )}
             <option value="fit">适应宽度</option>
             <option value="0.75">75%</option>
             <option value="0.9">90%</option>
@@ -190,6 +210,11 @@ export default function WordPreview({
         </>
       }
     >
+      <PreviewAdjustmentIndicator
+        visible={adjusting}
+        label="缩放"
+        value={`${Math.round(Number(zoom) * 100)}%`}
+      />
       {(status || error) && (
         <div className="word-status" role={error ? 'alert' : 'status'}>
           {!error && <span className="spinner" />}

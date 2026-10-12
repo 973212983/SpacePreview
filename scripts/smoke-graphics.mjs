@@ -35,6 +35,14 @@ try {
     await expect(page.locator('.file-title strong')).toHaveText(name);
   };
   await open('网页样式.html');
+  await expect(page.locator('.code-scroll')).toContainText('<!doctype html>');
+  await expect(page.locator('.hljs-tag').first()).toBeVisible();
+  await expect(page.locator('iframe[title="HTML 网页预览"]')).toHaveCount(0);
+  await expect(page.locator('.titlebar .preview-menu-option')).toHaveCount(0);
+  await openPreviewMenu(page);
+  await expect(page.getByLabel('HTML 视图')).toHaveValue('source');
+  await page.getByLabel('HTML 视图').selectOption('web');
+  await closePreviewMenu(page);
   const html = page.frameLocator('iframe[title="HTML 网页预览"]');
   await expect(html.locator('h1')).toHaveCSS('color', 'rgb(120, 89, 189)');
   await expect(html.locator('.grid')).toHaveCSS('display', 'grid');
@@ -53,11 +61,34 @@ try {
   await page.keyboard.press('Space');
   await expect(page.locator('.welcome')).toBeVisible();
   await open('网页样式.html');
+  await expect(page.locator('.code-scroll')).toContainText('<!doctype html>');
   await openPreviewMenu(page);
+  await page.getByLabel('HTML 视图').selectOption('web');
   await page.getByRole('button', { name: '阅读模式', exact: true }).click();
   await expect(page.locator('.reading-outline nav button')).toHaveCount(4);
-  await page.getByRole('button', { name: '查看源码', exact: true }).click();
+  await page.getByLabel('HTML 视图').selectOption('source');
   await expect(page.locator('.code-scroll')).toContainText('<!doctype html>');
+  await expect(page.getByLabel('HTML 视图')).toHaveValue('source');
+  await page.getByLabel('HTML 视图').selectOption('web');
+  await expect(html.locator('h1')).toHaveCSS('color', 'rgb(120, 89, 189)');
+  await closePreviewMenu(page);
+  for (const name of ['page.htm', 'page.xhtml']) {
+    await page.locator('input[type=file]').setInputFiles({
+      name,
+      mimeType: 'text/html',
+      buffer: Buffer.concat([
+        Buffer.from('<meta charset="windows-1252"><h1>caf'),
+        Buffer.from([0xe9]),
+        Buffer.from('</h1>'),
+      ]),
+    });
+    await expect(page.locator('.code-scroll')).toContainText('<h1>café</h1>');
+    await openPreviewMenu(page);
+    await expect(page.getByLabel('HTML 视图')).toHaveValue('source');
+    await page.getByLabel('HTML 视图').selectOption('web');
+    await expect(html.locator('h1')).toHaveText('café');
+    await closePreviewMenu(page);
+  }
   await open('Dockerfile.dev');
   await expect(page.locator('.hljs-keyword').first()).toHaveText('FROM');
   await open('CMakeLists.txt');

@@ -1,6 +1,46 @@
-# Third-party notices for v0.7.0 additions
+# Third-party notices for SpacePreview
 
 These dependencies are distributed with SpacePreview.
+
+## Extended format engines
+
+The build copies original LICENSE, COPYING and NOTICE files for production npm
+dependencies to `engines/licenses/`, with package versions, repository URLs and
+notice paths in `engines/licenses/index.json`. This directory is included in the
+web assets and also as readable files in the installer's `licenses/` directory.
+In particular, the complete ImageMagick NOTICE
+contains the licenses for its compiled delegates; retain the entire file.
+
+| Component | Version | License / source |
+| --- | --- | --- |
+| magick-wasm / ImageMagick | 0.0.44 / 7.1.2-32 | Apache-2.0 wrapper; ImageMagick and delegate notices in the package NOTICE; https://github.com/dlemstra/magick-wasm |
+| libarchive.js / libarchive | 2.0.2 / 3.7.2 | MIT wrapper; BSD libarchive COPYING included; https://github.com/nika-begiashvili/libarchivejs / https://github.com/libarchive/libarchive/tree/v3.7.2 |
+| occt-import-js / Open CASCADE Technology | 0.0.23 | LGPL-2.1; both dist license files included; https://github.com/kovacsv/occt-import-js |
+| assimpjs / Assimp | 0.0.10 | MIT wrapper / BSD Assimp; both dist license files included; https://github.com/kovacsv/assimpjs |
+| sql.js / SQLite | 1.14.1 | MIT wrapper / public-domain SQLite; https://github.com/sql-js/sql.js |
+| SheetJS | 0.20.3 | Apache-2.0; https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz |
+| opentype.js | 1.3.4 | MIT; https://github.com/opentypejs/opentype.js |
+| postal-mime | 2.7.5 | MIT; https://github.com/postalsys/postal-mime |
+| @kenjiuno/msgreader | 1.28.0 | MIT; https://github.com/HiraokaHyperTools/msgreader |
+| Asciidoctor.js | 3.0.4 | MIT; https://github.com/asciidoctor/asciidoctor.js |
+| Mermaid | 11.15.0 | MIT; https://github.com/mermaid-js/mermaid |
+| Viz.js / Graphviz | 3.31.0 / 16.1.0 | MIT wrapper / EPL-2.0 Graphviz; `viz-js-LICENSE.txt` and `graphviz-LICENSE.txt` included; https://github.com/mdaines/viz-js / https://gitlab.com/graphviz/graphviz/-/tree/16.1.0 |
+| lottie-web | 5.13.0 | MIT; https://github.com/airbnb/lottie-web |
+| Comlink / Buffer / fzstd | 4.4.2 / 6.0.3 / 0.1.1 | Apache-2.0 / MIT / MIT; original notices included |
+| seek-bzip / xz-decompress | 2.0.0 / 0.2.3 | MIT; xz-embedded is public domain and walloc is MIT; notices included |
+
+The generated libarchive.js worker includes one local change: it reports the
+native archive error after directory iteration instead of treating a failed read
+as an empty archive. The original copyright/license text is retained. All other
+engines are used without changes to their upstream source. SpacePreview
+loads their WASM modules separately. To modify or replace the LGPL CAD library,
+obtain the matching occt-import-js source release and its Open CASCADE submodule,
+follow its Emscripten build instructions, replace the package's dist JS/WASM,
+then run `npm run build` and `npm run desktop:build`. SpacePreview's source and
+build scripts are available at https://github.com/likehao19/SpacePreview. The
+application does not restrict reverse engineering for debugging modifications
+to these LGPL components. The package lock fixes the exact wrapper distribution
+and integrity used by this build.
 
 ## dxf-parser 1.1.2
 
@@ -309,3 +349,50 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+
+## auto-launch 0.5.0
+
+MIT License
+
+Copyright (c) 2022 zzzgydi
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## winreg 0.10.1
+
+Copyright (c) 2015 Igor Shaula
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.

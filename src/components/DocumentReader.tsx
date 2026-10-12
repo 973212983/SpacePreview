@@ -1,4 +1,5 @@
-import PreviewToolbar, { PreviewMenu } from './PreviewToolbar';
+import PreviewToolbar from './PreviewToolbar';
+import { TextAppearanceControls } from './TextAppearance';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { trackReadingPosition } from '../lib/reading-position';
 import DOMPurify from 'dompurify';
@@ -155,8 +156,6 @@ export default function DocumentReader({
 }) {
   const scroll = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState('');
-  const [size, setSize] = useState(18);
-  const [font, setFont] = useState('sans');
   const document = useMemo(() => {
     const safe = DOMPurify.sanitize(html, {
       FORBID_TAGS: [
@@ -226,45 +225,16 @@ export default function DocumentReader({
       onNavigate={(id) =>
         globalThis.document.getElementById(id)?.scrollIntoView({ block: 'start' })
       }
-      toolbar={
-        <>
-          {toolbar}
-          <PreviewMenu>
-            <label className="preview-menu-option">
-              <span>字体</span>
-              <select aria-label="阅读字体" value={font} onChange={(e) => setFont(e.target.value)}>
-                <option value="sans">现代字体</option>
-                <option value="serif">书籍字体</option>
-              </select>
-            </label>
-            <label className="preview-menu-option">
-              <span>字号</span>
-              <select
-                aria-label="阅读字号"
-                value={size}
-                onChange={(e) => setSize(Number(e.target.value))}
-              >
-                {[14, 16, 18, 20, 22].map((value) => (
-                  <option key={value} value={value}>
-                    {value} px
-                  </option>
-                ))}
-              </select>
-            </label>
-          </PreviewMenu>
-        </>
-      }
+      toolbar={toolbar}
     >
       <div className="document-scroll" ref={scroll}>
+        <TextAppearanceControls />
         {note && <div className="document-note">{note}</div>}
         <article
           className="document-paper prose"
           style={{
-            fontSize: size,
-            fontFamily:
-              font === 'serif'
-                ? 'Georgia, "Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif'
-                : 'var(--font-reading)',
+            fontSize: 'var(--preview-font-size, 16px)',
+            fontFamily: 'var(--preview-font-family, var(--font-reading))',
           }}
           onClick={(e) => {
             const anchor = (e.target as HTMLElement).closest('a');

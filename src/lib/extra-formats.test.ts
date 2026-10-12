@@ -36,6 +36,10 @@ describe('additional preview formats', () => {
       ['1', '2'],
     ]);
     expect(readDelimited(strToU8('a\tb\n1\t2'), 'a.tsv').columns).toBe(2);
+    expect(readDelimited(strToU8('姓名|说明\n中文|"包含|分隔符"'), 'a.psv').rows).toEqual([
+      ['姓名', '说明'],
+      ['中文', '包含|分隔符'],
+    ]);
     expect(() => readDelimited(strToU8('a,"broken'), 'a.csv')).toThrow('引号');
   });
   it('reads all CSV rows and columns without evaluating formulas', () => {

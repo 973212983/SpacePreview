@@ -1,6 +1,6 @@
 [package]
 name = "space-preview"
-version = "0.9.13"
+version = "0.10.6"
 description = "A quiet, local-first file previewer"
 authors = ["SpacePreview"]
 edition = "2021"
@@ -17,6 +17,7 @@ cc = "1"
 tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = "2"
+auto-launch = "0.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 mime_guess = "2"

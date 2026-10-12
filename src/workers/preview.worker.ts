@@ -65,14 +65,77 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     let result: WorkerResult;
     if (kind === 'dxf') result = { drawing: (await import('../lib/cad')).readDxf(bytes) };
     else if (kind === 'model')
-      result = { positions: (await import('../lib/model')).readModel(bytes, name) };
+      result = await (await import('../lib/extended-model')).readExtendedModel(bytes, name);
     else if (kind === 'tiff')
       result = { raster: (await import('../lib/tiff')).readTiff(bytes, event.data.page) };
-    else if (kind === 'archive') result = { entries: listZip(bytes) };
+    else if (kind === 'decoded-image') {
+      const image = await (
+        await import('../lib/decoded-image')
+      ).decodeImage(bytes, name, event.data.page);
+      result = {
+        data: image.data,
+        image: { pages: image.pages, page: image.page, mime: image.mime },
+      };
+    } else if (kind === 'mail')
+      result = { mail: await (await import('../lib/mail')).readMail(bytes, name) };
+    else if (kind === 'web-archive')
+      result = { webArchive: await (await import('../lib/web-archive')).readWebArchive(bytes) };
+    else if (kind === 'design-thumbnail')
+      result = { data: (await import('../lib/pdn-thumbnail')).pdnThumbnail(bytes) };
+    else if (kind === 'legacy-doc')
+      result = (await import('../lib/legacy-office')).readLegacyWord(bytes);
+    else if (kind === 'legacy-ppt')
+      result = (await import('../lib/legacy-office')).readLegacySlides(bytes);
+    else if (kind === 'graphviz') {
+      const source = decodeText(bytes).text;
+      if (source.length > 200_000) throw new Error('Graphviz 图表源码超过 200,000 字符。');
+      const viz = await (await import('@viz-js/viz')).instance();
+      result = { html: viz.renderString(source, { format: 'svg', engine: 'dot' }) };
+    } else if (kind === 'metafile')
+      result = {
+        data: bytes,
+        metafile: (await import('../lib/metafile')).metafileBounds(
+          bytes,
+          extension(name) === 'emf',
+        ),
+      };
+    else if (kind === 'package-directory' || kind === 'compound-data') {
+      const container = await import('../lib/package-container');
+      const ext = extension(name);
+      result =
+        ext === 'asar'
+          ? { entries: container.parseAsar(bytes, event.data.fileSize!) }
+          : ext === 'pak'
+            ? { entries: container.parsePak(bytes, event.data.fileSize!) }
+            : ext === 'xar'
+              ? {
+                  entries: (await import('../lib/xar-container')).parseXar(
+                    bytes,
+                    event.data.fileSize!,
+                  ),
+                }
+              : await container.readCompound(
+                  bytes,
+                  kind === 'compound-data' ? event.data.entry!.index : undefined,
+                );
+    } else if (kind === 'xar-data') {
+      const entry = event.data.entry!;
+      if (entry.method === 0) {
+        if (bytes.length !== entry.size) throw new Error('XAR 条目大小不一致。');
+        result = { data: bytes };
+      } else if (entry.method === 8)
+        result = { data: (await import('../lib/xar-container')).inflateZlib(bytes, entry.size) };
+      else throw new Error('XAR 条目压缩算法尚未支持。');
+    } else if (kind === 'archive') result = { entries: listZip(bytes) };
     else if (kind === 'archive-directory')
       result = { entries: parseZipDirectory(bytes, event.data.count!) };
     else if (kind === 'archive-data') result = { data: inflateZipEntry(bytes, event.data.entry!) };
-    else if (kind === 'docx-layout') result = { data: prepareDocx(bytes) };
+    else if (kind === 'archive-decompress') {
+      const ext = extension(name);
+      result = {
+        data: await (await import('../lib/compressed-stream')).decompressArchiveStream(bytes, ext),
+      };
+    } else if (kind === 'docx-layout') result = { data: prepareDocx(bytes) };
     else if (kind === 'csv')
       result = { sheets: [readDelimited(bytes, name)], note: '只读表格 · 保留原始单元格内容' };
     else if (kind === 'odt' || kind === 'ods' || kind === 'odp')
@@ -90,6 +153,22 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           }).value,
       );
     else if (kind === 'xlsx') result = { sheets: readWorkbook(bytes) };
+    else if (kind === 'legacy-xlsx')
+      result = {
+        sheets: await (await import('../lib/legacy-workbook')).readLegacyWorkbook(bytes, name),
+        note: '只读表格 · 显示已保存的值，不执行宏',
+      };
+    else if (kind === 'asciidoc') {
+      const { default: initialize } = await import('@asciidoctor/core');
+      const decoded = decodeText(bytes, event.data.encoding);
+      result = {
+        html: String(initialize().convert(decoded.text, { safe: 'secure', header_footer: false })),
+        encoding: decoded.encoding,
+      };
+    } else if (kind === 'animation')
+      result = {
+        animation: (await import('../lib/animation')).readAnimation(bytes, name, event.data.page),
+      };
     else if (kind === 'pptx') result = { slides: readSlides(bytes) };
     else if (kind === 'archive-entry') {
       const entry = listZip(bytes).find((e) => e.name === event.data.entryName && !e.directory);
@@ -112,11 +191,11 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       );
       result = { html: doc.value };
     } else {
+      const ext = extension(name);
       let { text, encoding } =
-        kind === 'html'
+        kind === 'html' || ['html', 'htm', 'xhtml'].includes(ext)
           ? decodeHtml(bytes, event.data.encoding)
           : decodeText(bytes, event.data.encoding, event.data.partial);
-      const ext = extension(name);
       if (ext === 'json') {
         try {
           text = JSON.stringify(JSON.parse(text), null, 2);
@@ -136,7 +215,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
               }).value;
       result = { text, html, encoding, language, lines: text.split('\n').length };
     }
-    if (result.positions) self.postMessage(result, { transfer: [result.positions.buffer] });
+    if (result.positions)
+      self.postMessage(result, {
+        transfer: [result.positions.buffer, ...(result.colors ? [result.colors.buffer] : [])],
+      });
     else if (result.raster) self.postMessage(result, { transfer: [result.raster.pixels.buffer] });
     else if (result.data) self.postMessage(result, { transfer: [result.data.buffer] });
     else self.postMessage(result);

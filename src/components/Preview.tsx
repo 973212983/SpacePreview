@@ -1,5 +1,10 @@
 import PreviewToolbar, { PreviewMenu } from './PreviewToolbar';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  PreviewAdjustmentIndicator,
+  TextAppearanceControls,
+  usePreviewGestures,
+} from './TextAppearance';
 import {
   FileQuestion,
   RotateCw,
@@ -22,6 +27,7 @@ import {
   formatSize,
   sniffMagic,
   sniffKind,
+  hasBinarySignature,
   unsupportedFormatHint,
   type PreviewFile,
   type PreviewKind,
@@ -43,6 +49,12 @@ import CadPreview from './CadPreview';
 import ModelPreview from './ModelPreview';
 import { sourceLanguage } from '../lib/source-languages';
 import FileIcon, { fileTypeLabel } from './FileIcon';
+import FontPreview from './FontPreview';
+import DatabasePreview from './DatabasePreview';
+import MailPreview from './MailPreview';
+import DiagramPreview from './DiagramPreview';
+import AnimationPreview from './AnimationPreview';
+import WebArchivePreview from './WebArchivePreview';
 
 const MiB = 1024 * 1024;
 
@@ -66,14 +78,41 @@ export default function Preview({
   onOpen: (file: PreviewFile) => void;
 }) {
   const registered = detectKind(file.name);
+  const textContainer = [
+    'docx',
+    'legacy-doc',
+    'xlsx',
+    'legacy-xlsx',
+    'pptx',
+    'legacy-ppt',
+    'odt',
+    'ods',
+    'odp',
+    'epub',
+  ].includes(registered);
+  const ambiguous = ['dot', 'mdc'].includes(extension(file.name));
   const [detected, setDetected] = useState<PreviewKind | null>(null);
   const [wordText, setWordText] = useState(false);
+  const [htmlSource, setHtmlSource] = useState(true);
   useEffect(() => {
-    if (mode !== 'auto' || registered !== 'binary') return;
+    if (mode !== 'auto' || (registered !== 'binary' && !ambiguous)) return;
     let active = true;
     readBytes(file, 16384)
       .then((bytes) => {
-        if (active) setDetected(sniffKind(bytes));
+        if (active) {
+          const sniffed = sniffKind(bytes);
+          setDetected(
+            extension(file.name) === 'dot'
+              ? sniffed === 'text'
+                ? 'diagram'
+                : 'legacy-doc'
+              : extension(file.name) === 'mdc'
+                ? sniffed === 'text'
+                  ? 'markdown'
+                  : 'decoded-image'
+                : sniffed,
+          );
+        }
       })
       .catch(() => {
         if (active) setDetected('binary');
@@ -81,36 +120,65 @@ export default function Preview({
     return () => {
       active = false;
     };
-  }, [file, mode, registered]);
+  }, [file, mode, registered, ambiguous]);
   const kind =
     mode === 'info'
       ? 'binary'
       : mode === 'text'
-        ? 'text'
-        : registered === 'binary'
+        ? textContainer
+          ? registered
+          : 'text'
+        : registered === 'binary' || ambiguous
           ? detected
           : registered;
   if (!kind) return <Loading />;
   if (kind === 'html')
-    return wordText ? (
-      <ParsedPreview file={file} kind="text" onLayout={() => setWordText(false)} />
-    ) : (
-      <HtmlPreview file={file} onSource={() => setWordText(true)} />
+    return (
+      <>
+        <PreviewMenu>
+          <label className="preview-menu-option">
+            <span>HTML 视图</span>
+            <select
+              aria-label="HTML 视图"
+              value={htmlSource ? 'source' : 'web'}
+              onChange={(event) => setHtmlSource(event.target.value === 'source')}
+            >
+              <option value="source">源码</option>
+              <option value="web">网页预览</option>
+            </select>
+          </label>
+        </PreviewMenu>
+        {htmlSource ? <ParsedPreview file={file} kind="text" /> : <HtmlPreview file={file} />}
+      </>
     );
   if (kind === 'dxf') return <CadPreview file={file} />;
   if (kind === 'model') return <ModelPreview file={file} />;
   if (kind === 'tiff') return <TiffPreview file={file} />;
+  if (kind === 'metafile') return <MetafilePreview file={file} />;
+  if (kind === 'decoded-image') return <DecodedImagePreview file={file} />;
+  if (kind === 'font') return <FontPreview file={file} />;
+  if (kind === 'database') return <DatabasePreview file={file} />;
+  if (kind === 'mail') return <MailPreview file={file} onOpen={onOpen} />;
+  if (kind === 'diagram') return <DiagramPreview file={file} />;
+  if (kind === 'animation') return <AnimationPreview file={file} />;
+  if (kind === 'web-archive') return <WebArchivePreview file={file} />;
+  if (kind === 'thumbnail') return <DesignPreview file={file} />;
   if (kind === 'rtf')
     return wordText ? (
       <ParsedPreview file={file} kind="text" onLayout={() => setWordText(false)} />
     ) : (
       <WordPreview file={file} format="rtf" onText={() => setWordText(true)} />
     );
-  if (kind === 'docx' && !wordText)
+  if (kind === 'docx' && !wordText && mode !== 'text')
     return <WordPreview file={file} onText={() => setWordText(true)} />;
   if (kind === 'image') return <ImagePreview file={file} />;
   if (kind === 'pdf') return <PdfPreview file={file} />;
-  if (kind === 'pptx') return <PresentationPreview file={file} />;
+  if (kind === 'pptx' || kind === 'legacy-ppt')
+    return mode === 'text' ? (
+      <ParsedPreview file={file} kind={kind} />
+    ) : (
+      <PresentationPreview file={file} />
+    );
   if (kind === 'video' || kind === 'audio')
     return <MediaPreview file={file} audio={kind === 'audio'} />;
   if (kind === 'binary') return <BinaryPreview file={file} />;
@@ -119,8 +187,92 @@ export default function Preview({
     <ParsedPreview
       file={file}
       kind={kind}
-      onLayout={kind === 'docx' ? () => setWordText(false) : undefined}
+      onLayout={kind === 'docx' && mode !== 'text' ? () => setWordText(false) : undefined}
     />
+  );
+}
+
+function MetafilePreview({ file }: { file: PreviewFile }) {
+  const [image, setImage] = useState<PreviewFile>();
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    if (file.size > 16 * MiB) {
+      setError('WMF/EMF 预览上限为 16 MB。');
+      return;
+    }
+    void readFullBytes(file, controller.signal)
+      .then((bytes) =>
+        parseInWorker({ kind: 'metafile', name: file.name, bytes }, controller.signal),
+      )
+      .then(async (result) => {
+        if (controller.signal.aborted) return;
+        const svg = await (
+          await import('../lib/metafile')
+        ).renderMetafile(result.data!, extension(file.name) === 'emf', result.metafile!);
+        if (controller.signal.aborted) return;
+        const blob = new Blob(
+          [DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } })],
+          { type: 'image/svg+xml' },
+        );
+        setImage({
+          ...file,
+          id: `${file.id}:vector`,
+          path: undefined,
+          blob,
+          size: blob.size,
+          mime: 'image/svg+xml',
+        });
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
+  }, [file]);
+  return (
+    <div className="tiff-preview metafile-preview">
+      <PreviewToolbar className="content-toolbar">
+        <span>{extension(file.name).toUpperCase()} · GDI 矢量预览</span>
+      </PreviewToolbar>
+      {error ? (
+        <ErrorNotice message={error} />
+      ) : image ? (
+        <ImagePreview file={image} />
+      ) : (
+        <Loading />
+      )}
+    </div>
+  );
+}
+
+function DesignPreview({ file }: { file: PreviewFile }) {
+  const [image, setImage] = useState<PreviewFile>();
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    void import('../lib/design-thumbnail')
+      .then(({ designThumbnail }) => designThumbnail(file, controller.signal))
+      .then((result) => {
+        if (!controller.signal.aborted) setImage(result);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
+  }, [file]);
+  return (
+    <>
+      <PreviewToolbar className="content-toolbar">
+        <span>设计文档 · 内置预览图</span>
+      </PreviewToolbar>
+      {error ? (
+        <ErrorNotice message={error} />
+      ) : image ? (
+        <ImagePreview file={image} />
+      ) : (
+        <Loading />
+      )}
+    </>
   );
 }
 
@@ -204,6 +356,65 @@ function ImagePreview({ file }: { file: PreviewFile }) {
           <RotateCw size={16} />
         </button>
       </PreviewToolbar>
+    </div>
+  );
+}
+
+function DecodedImagePreview({ file }: { file: PreviewFile }) {
+  const [page, setPage] = useState(0);
+  const [pages, setPages] = useState(0);
+  const [image, setImage] = useState<PreviewFile>();
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    setImage(undefined);
+    setError('');
+    void readFullBytes(file, controller.signal)
+      .then((bytes) =>
+        parseInWorker({ kind: 'decoded-image', bytes, name: file.name, page }, controller.signal),
+      )
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        const mime = result.image!.mime ?? 'image/png';
+        const blob = new Blob([result.data as Uint8Array<ArrayBuffer>], { type: mime });
+        setPages(result.image!.pages);
+        setImage({
+          ...file,
+          id: `${file.id}:${page}`,
+          path: undefined,
+          blob,
+          mime,
+          size: blob.size,
+        });
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
+  }, [file, page]);
+  return (
+    <div className="tiff-preview">
+      <PreviewToolbar className="content-toolbar">
+        <span>
+          {extension(file.name).toUpperCase()} · 第 {page + 1} / {pages || '…'} 页 / 图层
+        </span>
+        <button disabled={!image || page === 0} onClick={() => setPage((value) => value - 1)}>
+          上一页
+        </button>
+        <button
+          disabled={!image || page >= pages - 1}
+          onClick={() => setPage((value) => value + 1)}
+        >
+          下一页
+        </button>
+      </PreviewToolbar>
+      {error ? (
+        <ErrorNotice message={error} />
+      ) : image ? (
+        <ImagePreview key={image.id} file={image} />
+      ) : (
+        <Loading />
+      )}
     </div>
   );
 }
@@ -335,7 +546,10 @@ function PresentationPreview({ file }: { file: PreviewFile }) {
         )}
       </PreviewMenu>
       {text ? (
-        <ParsedPreview file={file} kind="pptx" />
+        <ParsedPreview
+          file={file}
+          kind={detectKind(file.name) === 'legacy-ppt' ? 'legacy-ppt' : 'pptx'}
+        />
       ) : pdf ? (
         <PdfPreview file={pdf} presentation />
       ) : (
@@ -350,6 +564,15 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(1);
+  const adjusting = usePreviewGestures(
+    useCallback(
+      (direction: number) =>
+        setZoom((current) =>
+          Math.max(0.1, Math.min(4, Number((current + direction * 0.1).toFixed(2)))),
+        ),
+      [],
+    ),
+  );
   const [error, setError] = useState('');
   const scroll = useRef<HTMLDivElement>(null);
   const currentPage = useRef(1);
@@ -520,6 +743,11 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
   }, [zoom, fitZoom]);
   return (
     <div className="pdf-preview">
+      <PreviewAdjustmentIndicator
+        visible={adjusting}
+        label="缩放"
+        value={`${Math.round(zoom * 100)}%`}
+      />
       {error ? (
         <ErrorNotice message={error} />
       ) : (
@@ -677,6 +905,7 @@ function ParsedPreview({
 }) {
   const [result, setResult] = useState<WorkerResult | null>(null);
   const [progress, setProgress] = useState(0);
+  const [binary, setBinary] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const plainText =
@@ -732,6 +961,7 @@ function ParsedPreview({
     const controller = new AbortController();
     setError('');
     setResult(null);
+    setBinary(false);
     setProgress(0);
     const largeOffice =
       file.size > limit && ['docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp'].includes(kind);
@@ -739,22 +969,56 @@ function ParsedPreview({
       setError(`此格式的快速预览上限为 ${limit / MiB} MB，请切换到文件信息或默认应用。`);
       return;
     }
-    (largeOffice
-      ? readOfficeXmlPackage(file, controller.signal)
-      : ['text', 'markdown', 'html', 'csv'].includes(kind)
-        ? readFullBytes(file, controller.signal, setProgress)
-        : readBytes(file, limit)
-    )
-      .then((bytes) => parseInWorker({ kind, name: file.name, bytes, encoding }, controller.signal))
-      .then((value) => {
-        if (!controller.signal.aborted) setResult(value);
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(String(e.message ?? e));
-      });
+    const load = async () => {
+      if (kind === 'text') {
+        const prefix = await readBytes(file, 16384);
+        controller.signal.throwIfAborted();
+        const registered = detectKind(file.name);
+        const textSource = [
+          'text',
+          'markdown',
+          'html',
+          'rtf',
+          'asciidoc',
+          'fb2',
+          'notebook',
+          'diagram',
+        ].includes(registered);
+        if (
+          hasBinarySignature(prefix) ||
+          (!textSource && !['text', 'html', 'rtf'].includes(sniffKind(prefix)))
+        ) {
+          setBinary(true);
+          return;
+        }
+      }
+      const bytes = await (largeOffice
+        ? readOfficeXmlPackage(file, controller.signal)
+        : [
+              'text',
+              'markdown',
+              'html',
+              'csv',
+              'asciidoc',
+              'legacy-xlsx',
+              'legacy-doc',
+              'legacy-ppt',
+            ].includes(kind)
+          ? readFullBytes(file, controller.signal, setProgress)
+          : readBytes(file, limit));
+      const value = await parseInWorker(
+        { kind, name: file.name, bytes, encoding },
+        controller.signal,
+      );
+      if (!controller.signal.aborted) setResult(value);
+    };
+    void load().catch((e) => {
+      if (!controller.signal.aborted) setError(String(e.message ?? e));
+    });
     return () => controller.abort();
   }, [file, kind, limit, container, encoding]);
   if (error) return <ErrorNotice message={error} />;
+  if (binary) return <BinaryPreview file={file} textFallback />;
   if (!result) return <Loading progress={progress} />;
   if (result.sheets || result.slides) return <OfficePreview result={result} />;
   if (result.chapters) return <BookPreview chapters={result.chapters} />;
@@ -791,7 +1055,9 @@ function ParsedPreview({
       </label>
     </PreviewMenu>
   );
-  if (['markdown', 'docx', 'odt', 'html', 'fb2', 'notebook'].includes(kind)) {
+  if (
+    ['markdown', 'docx', 'odt', 'html', 'fb2', 'notebook', 'asciidoc', 'legacy-doc'].includes(kind)
+  ) {
     // Block active content and remote images; documents cannot fetch tracking resources.
     return (
       <DocumentReader
@@ -799,15 +1065,17 @@ function ParsedPreview({
         toolbar={
           <>
             <span className="reading-label">
-              {kind === 'markdown'
-                ? 'Markdown'
-                : kind === 'html'
-                  ? 'HTML · 安全阅读'
-                  : kind === 'fb2'
-                    ? 'FB2 · 电子书'
-                    : kind === 'notebook'
-                      ? 'Jupyter Notebook'
-                      : '文档 · 文字速览'}
+              {kind === 'legacy-doc'
+                ? result.note
+                : kind === 'markdown'
+                  ? 'Markdown'
+                  : kind === 'html'
+                    ? 'HTML · 安全阅读'
+                    : kind === 'fb2'
+                      ? 'FB2 · 电子书'
+                      : kind === 'notebook'
+                        ? 'Jupyter Notebook'
+                        : '文档 · 文字速览'}
             </span>
             {!container && encodingControl}
             {onLayout && <button onClick={onLayout}>页面预览</button>}
@@ -829,6 +1097,7 @@ function ParsedPreview({
     });
   return (
     <div className={`text-preview ${plainText ? 'plain-text' : 'source-code'}`}>
+      <TextAppearanceControls />
       <PreviewToolbar className="content-toolbar">
         <span className="toolbar-summary">
           {result.encoding}
@@ -893,6 +1162,7 @@ function BookPreview({ chapters }: { chapters: NonNullable<WorkerResult['chapter
   const chapter = chapters[index];
   return (
     <div className="book-preview">
+      <TextAppearanceControls />
       <PreviewToolbar className="content-toolbar">
         <select
           aria-label="选择电子书章节"
@@ -919,7 +1189,13 @@ function BookPreview({ chapters }: { chapters: NonNullable<WorkerResult['chapter
   );
 }
 
-function BinaryPreview({ file }: { file: PreviewFile }) {
+function BinaryPreview({
+  file,
+  textFallback = false,
+}: {
+  file: PreviewFile;
+  textFallback?: boolean;
+}) {
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [error, setError] = useState('');
   const [shown, setShown] = useState(128);
@@ -1057,11 +1333,13 @@ function BinaryPreview({ file }: { file: PreviewFile }) {
       </div>
       <p className="binary-hint">
         <Info size={16} />
-        {unsupportedFormatHint(file.name) || (
-          <>
-            此格式尚未支持内容预览。确认它是文本时，可用 <kbd>Shift</kbd> + 预览快捷键查看。
-          </>
-        )}
+        {textFallback
+          ? '检测到二进制内容，已显示文件信息和字节预览；此文件无法按纯文本阅读。'
+          : unsupportedFormatHint(file.name) || (
+              <>
+                此格式尚未支持内容预览。确认它是文本时，可用 <kbd>Shift</kbd> + 预览快捷键查看。
+              </>
+            )}
       </p>
     </div>
   );

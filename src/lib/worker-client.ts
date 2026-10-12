@@ -15,7 +15,11 @@ export function parseInWorker(request: WorkerRequest, signal: AbortSignal): Prom
       cleanup();
       reject(new DOMException('已取消', 'AbortError'));
     };
-    const timeout = request.bytes.byteLength > 512 * 1024 ? 120_000 : 10_000;
+    const timeout =
+      ['decoded-image', 'model', 'graphviz'].includes(request.kind) ||
+      request.bytes.byteLength > 512 * 1024
+        ? 120_000
+        : 10_000;
     const timer = setTimeout(() => {
       cleanup();
       reject(new Error(`解析超过 ${timeout / 1000} 秒，已停止。可切换为文件信息预览。`));

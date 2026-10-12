@@ -1,7 +1,7 @@
 import PreviewToolbar from './PreviewToolbar';
 import { useEffect, useRef, useState } from 'react';
 import type { PreviewFile } from '../lib/files';
-import { readBytes } from '../lib/bridge';
+import { readFullBytes } from '../lib/bridge';
 import { parseInWorker } from '../lib/worker-client';
 
 export default function ModelPreview({ file }: { file: PreviewFile }) {
@@ -9,13 +9,13 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
   const reset = useRef<() => void>(() => {});
   const [error, setError] = useState('');
   const [triangles, setTriangles] = useState(0);
+  const [points, setPoints] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     let dispose = () => {};
     const load = async () => {
-      if (file.size > 16 * 1024 * 1024) throw new Error('三维模型预览上限为 16 MB。');
       const [result, THREE, { OrbitControls }] = await Promise.all([
-        readBytes(file, 16 * 1024 * 1024).then((bytes) =>
+        readFullBytes(file, controller.signal).then((bytes) =>
           parseInWorker({ kind: 'model', bytes, name: file.name }, controller.signal),
         ),
         import('three'),
@@ -25,7 +25,9 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
       const element = host.current,
         geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.BufferAttribute(result.positions!, 3));
-      geometry.computeVertexNormals();
+      if (result.colors)
+        geometry.setAttribute('color', new THREE.BufferAttribute(result.colors, 3));
+      if (!result.points) geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
       const sphere = geometry.boundingSphere!;
       if (!Number.isFinite(sphere.radius) || sphere.radius === 0) {
@@ -45,16 +47,26 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
       element.append(renderer.domElement);
       const scene = new THREE.Scene(),
         material = new THREE.MeshStandardMaterial({
-          color: 0xb8d4df,
+          color: result.colors ? 0xffffff : 0xb8d4df,
+          vertexColors: !!result.colors,
           metalness: 0.12,
           roughness: 0.65,
           flatShading: true,
           side: THREE.DoubleSide,
         });
-      scene.add(new THREE.Mesh(geometry, material));
+      const pointMaterial = new THREE.PointsMaterial({
+        color: result.colors ? 0xffffff : 0xb8d4df,
+        vertexColors: !!result.colors,
+        size: sphere.radius / 100,
+      });
+      scene.add(
+        result.points
+          ? new THREE.Points(geometry, pointMaterial)
+          : new THREE.Mesh(geometry, material),
+      );
       const edges = new THREE.EdgesGeometry(geometry);
       const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x506879 });
-      scene.add(new THREE.LineSegments(edges, edgeMaterial));
+      if (!result.points) scene.add(new THREE.LineSegments(edges, edgeMaterial));
       scene.add(new THREE.HemisphereLight(0xe9f2ff, 0x68727e, 1));
       const light = new THREE.DirectionalLight(0xffffff, 1.8);
       light.position.set(2, 3, 4);
@@ -90,7 +102,8 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
       observer.observe(element);
       resize();
       fit();
-      setTriangles(result.positions!.length / 9);
+      setTriangles(result.positions!.length / (result.points ? 3 : 9));
+      setPoints(!!result.points);
       dispose = () => {
         observer.disconnect();
         controls.dispose();
@@ -98,6 +111,7 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
         edges.dispose();
         edgeMaterial.dispose();
         material.dispose();
+        pointMaterial.dispose();
         renderer.dispose();
         renderer.forceContextLoss();
         renderer.domElement.remove();
@@ -115,7 +129,9 @@ export default function ModelPreview({ file }: { file: PreviewFile }) {
   return (
     <div className="model-preview">
       <PreviewToolbar className="content-toolbar">
-        <span>三维模型 · {triangles.toLocaleString()} 三角面</span>
+        <span>
+          三维模型 · {triangles.toLocaleString()} {points ? '点' : '三角面'}
+        </span>
         <button
           title="拖动旋转 · 右键平移 · 滚轮缩放；不加载外部材质与贴图"
           onClick={() => reset.current()}
