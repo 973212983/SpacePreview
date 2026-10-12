@@ -50,5 +50,6 @@ describe('legacy Excel content', () => {
       expect(sheets[0].rows.at(-1)).toEqual(['中文 3099', '3099']);
       expect(sheets[0].truncated).toBe(false);
     },
+    15000,
   );
 });

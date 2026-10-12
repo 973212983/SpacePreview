@@ -872,7 +872,7 @@ export default function App() {
             <span className="status-dot muted" /> 全部在本地发生
           </span>
           <span>
-            SPACEPREVIEW <b>·</b> v0.10.6
+            SPACEPREVIEW <b>·</b> v0.10.7
           </span>
           <span>为「只想看一眼」而设计</span>
         </footer>

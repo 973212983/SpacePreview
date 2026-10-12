@@ -21,7 +21,9 @@ it('loads all bytes above the native single-read limit with progress', async () 
     size,
     async (offset, length) => {
       ranges.push(length);
-      return Uint8Array.from({ length }, (_, index) => (offset + index) % 251);
+      const chunk = new Uint8Array(length);
+      for (let index = 0; index < length; index++) chunk[index] = (offset + index) % 251;
+      return chunk;
     },
     new AbortController().signal,
     (value) => progress.push(value),

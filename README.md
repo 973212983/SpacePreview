@@ -2,7 +2,7 @@
 
 **不必打开，看一眼就好。** 基于 Tauri 2、React、TypeScript 和 Rust 的本地文件预览器。
 
-当前源码版本为 **v0.10.6**。纯文本解析前检查内容，二进制 DLL/EXE 显示文件信息与字节预览，避免全文解析卡住。文字预览统一默认 16px，并支持字体、字号与键盘/滚轮调整；v0.10.0 补充了专业图像、压缩容器、CAD/三维、旧版 Office、数据库、邮件、字体、图表和设计预览。新增格式的能力、实测状态与剩余缺口见 [格式对照清单](docs/FORMAT_PARITY.md)。GitHub 最新已发布版本与本地开发构建可能不同。macOS 已接入 Finder 快捷键监听、权限提示和 Dock 文件打开；本轮新增引擎与字体操作尚未进行 Mac 真机验收。
+当前源码版本为 **v0.10.7**。纯文本解析前检查内容，二进制 DLL/EXE 显示文件信息与字节预览，避免全文解析卡住。文字预览统一默认 16px，并支持字体、字号与键盘/滚轮调整；v0.10.0 补充了专业图像、压缩容器、CAD/三维、旧版 Office、数据库、邮件、字体、图表和设计预览。新增格式的能力、实测状态与剩余缺口见 [格式对照清单](docs/FORMAT_PARITY.md)。GitHub 最新已发布版本与本地开发构建可能不同。macOS 已接入 Finder 快捷键监听、权限提示和 Dock 文件打开；本轮新增引擎与字体操作尚未进行 Mac 真机验收。
 
 [下载安装包](https://github.com/likehao19/SpacePreview/releases/latest) · [版本说明](RELEASE-NOTES.md)。Mac 包使用临时签名，未进行 Apple Developer ID 签名和公证。
 
