@@ -22,7 +22,12 @@
         "center": true,
         "visible": false,
         "dragDropEnabled": true,
-        "titleBarStyle": "Visible"
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 14,
+          "y": 17
+        }
       }
     ]
   }

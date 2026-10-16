@@ -566,7 +566,7 @@ export default function App() {
 
   return (
     <div
-      className={`app ${file || previewError ? 'has-preview' : ''}`}
+      className={`app ${file || previewError ? 'has-preview' : ''} ${desktop && macos ? 'native-mac' : ''}`}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -595,7 +595,7 @@ export default function App() {
           {file ? (
             <>
               <button
-                className="app-mark mini"
+                className={`app-mark mini${macos ? ' mac-home-mark' : ''}`}
                 title="返回欢迎页"
                 onClick={() => {
                   request.current++;
@@ -641,16 +641,31 @@ export default function App() {
             </>
           ) : (
             <>
-              <div className="app-mark mini">
+              <div className={`app-mark mini${macos ? ' mac-home-mark' : ''}`}>
                 <img className="brand-icon" src="/app-icon.png" alt="瞬览" />
               </div>
               <strong className="brand">
-                瞬览 <span>SpacePreview</span>
+                {macos ? (
+                  settingsOpen ? (
+                    '设置'
+                  ) : (
+                    '瞬览'
+                  )
+                ) : (
+                  <>
+                    瞬览 <span>SpacePreview</span>
+                  </>
+                )}
               </strong>
             </>
           )}
         </div>
         <div className="title-right">
+          {macos && file && (
+            <button className="mac-open-default" onClick={() => void openFile()}>
+              在默认应用中打开
+            </button>
+          )}
           {file && (
             <>
               <div className="menu-container">
@@ -709,6 +724,7 @@ export default function App() {
                       </button>
                       <button
                         onClick={() => {
+                          setSettingsPage('settings');
                           setSettingsOpen(true);
                           setMenuOpen(false);
                         }}
@@ -742,6 +758,7 @@ export default function App() {
                   <div className="dropdown">
                     <button
                       onClick={() => {
+                        setSettingsPage('settings');
                         setSettingsOpen(true);
                         setMenuOpen(false);
                       }}
@@ -814,12 +831,67 @@ export default function App() {
           ))}
         </main>
       ) : null}
-      {(settingsOpen || (!file && !previewError)) && (
+      {macos && !file && !previewError && !settingsOpen && (
+        <main className="mac-welcome">
+          <img src="/app-icon.png" alt="" width="52" height="52" />
+          <h1>选择文件，即刻预览</h1>
+          <p>将文件拖到这里，或在 Finder 中选中后按 {previewKey}。</p>
+          <button className="mac-primary" onClick={() => void choose()}>
+            打开文件… <kbd>⌘O</kbd>
+          </button>
+          {desktop && agent && (
+            <div className="mac-preview-status" role="status">
+              {!settings.spaceEnabled ? (
+                <>
+                  <p>Finder 快捷键预览已关闭</p>
+                  <button onClick={() => setSettings((s) => ({ ...s, spaceEnabled: true }))}>
+                    启用 Finder 预览
+                  </button>
+                </>
+              ) : agent.running ? (
+                <p>Finder 空格预览已就绪</p>
+              ) : (
+                <>
+                  <p>
+                    {!agent.accessibility
+                      ? '需要辅助功能权限，才能接收 Finder 空格按键。'
+                      : !agent.automation
+                        ? '需要自动化权限，才能读取 Finder 所选文件。'
+                        : '键盘监听未就绪，请检查输入监控权限。'}
+                  </p>
+                  <button
+                    onClick={() =>
+                      void invoke('request_agent_permissions').catch((error) =>
+                        setToast(`权限请求失败：${String(error)}`),
+                      )
+                    }
+                  >
+                    设置 Finder 预览权限…
+                  </button>
+                  <small>
+                    请为当前运行的瞬览授权；更新或更换应用位置后，可能需要在系统设置中重新添加。授权后自动重试。
+                  </small>
+                </>
+              )}
+            </div>
+          )}
+          <button
+            className="mac-settings-link"
+            onClick={() => {
+              setSettingsPage('settings');
+              setSettingsOpen(true);
+            }}
+          >
+            设置…
+          </button>
+        </main>
+      )}
+      {(settingsOpen || (!macos && !file && !previewError)) && (
         <div className="settings-workspace">
           <section
             className={'settings-dialog' + (!file ? ' welcome' : '')}
-            role={file ? 'dialog' : 'region'}
-            aria-modal={file ? true : undefined}
+            role={settingsOpen ? 'dialog' : 'region'}
+            aria-modal={settingsOpen ? true : undefined}
             aria-labelledby="settings-title"
           >
             <aside className="settings-sidebar">

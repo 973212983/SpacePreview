@@ -3418,3 +3418,101 @@ button:disabled:hover {
 :root[data-platform='macos'] button:not(:disabled):active {
   transform: none;
 }
+
+/* Quick Look: one compact toolbar, with native controls in the same row. */
+:root[data-platform='macos'] .native-mac .titlebar {
+  padding-left: 92px;
+}
+:root[data-platform='macos'] .mac-home-mark,
+:root[data-platform='macos'] .settings-brand {
+  display: none;
+}
+:root[data-platform='macos'] .file-title strong {
+  font-size: 13px;
+  max-width: none;
+}
+:root[data-platform='macos'] .title-left {
+  flex: 1;
+  overflow: hidden;
+}
+.mac-open-default {
+  padding: 5px 13px;
+  background: var(--subtle);
+  border-radius: 16px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.mac-open-default:hover {
+  background: var(--line);
+}
+.mac-welcome {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-direction: column;
+  padding: clamp(28px, 12vh, 100px) 28px 28px;
+  overflow: auto;
+  text-align: center;
+}
+.mac-welcome h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 20px 0 0;
+}
+.mac-welcome > p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 12px 0 22px;
+}
+.mac-primary {
+  background: var(--accent);
+  color: white;
+  border-radius: 7px;
+  padding: 8px 16px;
+  font-size: 13px;
+}
+.mac-primary kbd {
+  margin-left: 16px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  opacity: 0.8;
+}
+.mac-preview-status {
+  margin-top: 24px;
+  max-width: 380px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.mac-preview-status p {
+  margin: 0 0 8px;
+}
+.mac-preview-status button,
+.mac-settings-link {
+  color: var(--accent);
+  font-size: 12px;
+}
+.mac-preview-status small {
+  display: block;
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.mac-settings-link {
+  margin-top: 20px;
+}
+:root[data-platform='macos'] .settings-sidebar {
+  width: 170px;
+  padding-top: 18px;
+}
+:root[data-platform='macos'] .settings-main {
+  padding-top: 18px;
+}
+:root[data-platform='macos'] .settings-version {
+  padding-left: 12px;
+}
+:root[data-platform='macos'] .preview-container {
+  border-radius: 10px 10px 0 0;
+  overflow: hidden;
+}

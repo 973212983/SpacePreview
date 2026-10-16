@@ -168,7 +168,16 @@ void sp_mac_request_permissions(void) {
         AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)@{
             (__bridge NSString *)kAXTrustedCheckOptionPrompt: @YES
         });
-        atomic_store(&automationAllowed, finderPermission(true) == noErr);
+        bool automation = finderPermission(true) == noErr;
+        atomic_store(&automationAllowed, automation);
+        // A previously denied permission does not show the system prompt again.
+        NSString *pane = !AXIsProcessTrusted() ? @"Privacy_Accessibility"
+            : !automation ? @"Privacy_Automation"
+            : !atomic_load(&tapRunning) ? @"Privacy_ListenEvent" : nil;
+        if (pane) {
+            NSURL *url = [NSURL URLWithString:[@"x-apple.systempreferences:com.apple.preference.security?" stringByAppendingString:pane]];
+            [NSWorkspace.sharedWorkspace openURL:url];
+        }
     }
 }
 

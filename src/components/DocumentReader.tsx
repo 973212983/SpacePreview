@@ -23,7 +23,7 @@ export function ReadingLayout({
   toolbar?: React.ReactNode;
   activeId?: string;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(() => !/Mac/i.test(navigator.platform));
   const [active, setActive] = useState('');
   const [width, setWidth] = useState(220);
   const [filter, setFilter] = useState('');
