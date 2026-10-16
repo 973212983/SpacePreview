@@ -1,4 +1,4 @@
-# SpacePreview v0.10.10
+# SpacePreview v0.10.11
 
 ## 大文件加载与文件夹预览
 

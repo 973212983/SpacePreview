@@ -18,7 +18,8 @@ describe('progressive content reads', () => {
       new AbortController().signal,
       async (bytes, complete) => {
         stages.push(bytes.length);
-        expect(bytes).toEqual(source.slice(0, bytes.length));
+        // Compare every byte without the assertion library's large-object traversal.
+        expect(bytes.every((byte, index) => byte === source[index])).toBe(true);
         expect(complete).toBe(bytes.length === source.length);
       },
       () => {},
