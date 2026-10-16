@@ -229,15 +229,14 @@ unsafe fn paths_from_browser(
                     paths.push(path);
                 } else if Path::new(&path).is_dir() {
                     directories += 1;
+                    paths.push(path);
                 }
             }
         }
     }
     crate::diagnostics::record(format!("selection items={count} files={} directories={directories} filesystem_items={filesystem_items}", paths.len()));
     if paths.is_empty() && count > 0 {
-        let message = if directories > 0 {
-            "暂不支持文件夹预览，请选择文件夹内的文件。"
-        } else if filesystem_items == 0 {
+        let message = if filesystem_items == 0 {
             "所选项目没有本地文件路径，暂不支持此类系统图标预览。"
         } else {
             "所选文件不存在或无法读取，请检查文件是否可访问。"

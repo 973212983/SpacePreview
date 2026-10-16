@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PreviewFile } from '../lib/files';
 import { readFullBytes } from '../lib/bridge';
-import { parseInWorker } from '../lib/worker-client';
+import { readWordPackage } from '../lib/word-package';
+import { wordDom } from '../lib/word-dom';
 import { trackReadingPosition } from '../lib/reading-position';
 import { buildWordOutline } from '../lib/word-outline';
 import { forwardPreviewKey } from '../lib/shortcuts';
@@ -71,6 +72,22 @@ export default function WordPreview({
     if (!ready) return;
     const controller = new AbortController();
     const load = async () => {
+      const target = frame.current?.contentDocument;
+      if (!target) return;
+      target.body.replaceChildren();
+      setRendered(false);
+      setError('');
+      const style = target.createElement('style');
+      style.textContent =
+        'html{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent} @supports selector(::-webkit-scrollbar){html{scrollbar-width:auto}} body{margin:0;font-family:Calibri,"Microsoft YaHei",sans-serif} .docx-wrapper{padding:24px 20px;background:transparent;min-height:100vh;box-sizing:border-box} .docx-wrapper>section.docx{box-shadow:0 2px 12px #00000018,0 0 0 1px #00000006;margin-bottom:24px} [class*="word-heading-"]{scroll-margin-top:28px} a{pointer-events:none} ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:1px solid transparent;background-clip:padding-box;border-radius:10px} ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover)} ::-webkit-scrollbar-track{background:transparent}';
+      target.body.append(style);
+      target.addEventListener('click', (e) => {
+        if ((e.target as Element).closest('a')) e.preventDefault();
+      });
+      // Forward closing/navigation keys from the sandboxed document to the app.
+      for (const type of ['keydown', 'keyup'] as const)
+        target.addEventListener(type, forwardPreviewKey);
+      target.addEventListener('wheel', forwardPreviewWheel, { passive: false });
       const headings: OutlineItem[] = [];
       let nodes: Node[];
       if (format === 'rtf') {
@@ -98,17 +115,11 @@ export default function WordPreview({
         wrapper.append(page);
         nodes = [wrapper];
       } else {
-        const [bytes, engine] = await Promise.all([
-          readFullBytes(file, controller.signal, (value) =>
-            setStatus(`正在读取完整文档… ${value}%`),
-          ),
+        setStatus('正在读取文档结构…');
+        const [source, engine] = await Promise.all([
+          readWordPackage(file, controller.signal),
           import('docx-preview'),
         ]);
-        setStatus('正在解析文档与图片…');
-        const verified = await parseInWorker(
-          { kind: 'docx-layout', bytes, name: file.name },
-          controller.signal,
-        );
         if (controller.signal.aborted) return;
         const options = {
           useBase64URL: true,
@@ -116,27 +127,57 @@ export default function WordPreview({
           renderComments: false,
           ignoreLastRenderedPageBreak: true,
         };
-        const doc = await engine.parseAsync(verified.data, options);
+        setStatus('正在解析页面排版…');
+        const doc = await engine.parseAsync(source.data, options);
         if (controller.signal.aborted) return;
+        // Keep the engine's image/font decoding, but supply missing binary parts on demand.
+        const originalLoad = doc._package.load.bind(doc._package);
+        let failedResources = 0;
+        doc._package.load = async (path: string, type: string) => {
+          const original = await originalLoad(path, type);
+          if (original != null) return original;
+          try {
+            const bytes = await source.resource(path);
+            if (!bytes) return null;
+            return type === 'blob' ? new Blob([bytes as Uint8Array<ArrayBuffer>]) : bytes;
+          } catch (reason) {
+            if (controller.signal.aborted) throw reason;
+            failedResources++;
+            return null;
+          }
+        };
         headings.push(...buildWordOutline(doc.documentPart.body, doc.stylesPart?.styles ?? []));
+        let mounting: Promise<void> = Promise.resolve();
         setStatus('正在还原页面排版…');
-        nodes = await engine.renderDocument(doc, options);
+        nodes = await engine.renderDocument(doc, {
+          ...options,
+          h: wordDom(target, (wrapper) => {
+            const pages = Array.from(wrapper.children);
+            wrapper.replaceChildren();
+            target.body.append(wrapper);
+            mounting = (async () => {
+              for (let index = 0; index < pages.length; index += 2) {
+                controller.signal.throwIfAborted();
+                wrapper.append(...pages.slice(index, index + 2));
+                setOutline(headings.filter((heading) => target.querySelector(`.${heading.id}`)));
+                setRendered(true);
+                setStatus(
+                  `页面已显示，正在加载后续页面与图片… ${Math.min(index + 2, pages.length)} / ${pages.length}`,
+                );
+                await new Promise((resolve) => setTimeout(resolve, 16));
+              }
+            })();
+            // Cancellation is handled by the enclosing load task, including while images are pending.
+            void mounting.catch(() => {});
+          }),
+        });
+        await mounting;
+        if (failedResources) setError(`${failedResources} 个图片或字体未能加载，已保留可用页面。`);
       }
       if (controller.signal.aborted) return;
-      const target = frame.current?.contentDocument;
-      if (!target) return;
-      target.body.replaceChildren(...nodes);
-      const style = target.createElement('style');
-      style.textContent =
-        'html{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent} @supports selector(::-webkit-scrollbar){html{scrollbar-width:auto}} body{margin:0;font-family:Calibri,"Microsoft YaHei",sans-serif} .docx-wrapper{padding:24px 20px;background:transparent;min-height:100vh;box-sizing:border-box} .docx-wrapper>section.docx{box-shadow:0 2px 12px #00000018,0 0 0 1px #00000006;margin-bottom:24px} [class*="word-heading-"]{scroll-margin-top:28px} a{pointer-events:none} ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:1px solid transparent;background-clip:padding-box;border-radius:10px} ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover)} ::-webkit-scrollbar-track{background:transparent}';
-      target.body.append(style);
-      target.addEventListener('click', (e) => {
-        if ((e.target as Element).closest('a')) e.preventDefault();
-      });
-      // Forward closing/navigation keys from the sandboxed document to the app.
-      for (const type of ['keydown', 'keyup'] as const)
-        target.addEventListener(type, forwardPreviewKey);
-      target.addEventListener('wheel', forwardPreviewWheel, { passive: false });
+      for (const node of nodes) {
+        if (!target.body.contains(node) && !target.head.contains(node)) target.body.append(node);
+      }
       setOutline(headings);
       setStatus('');
       setRendered(true);
@@ -176,7 +217,7 @@ export default function WordPreview({
       resize.disconnect();
       theme.disconnect();
     };
-  }, [zoom, rendered]);
+  }, [zoom, rendered, outline]);
   return (
     <ReadingLayout
       outline={outline}
@@ -216,7 +257,10 @@ export default function WordPreview({
         value={`${Math.round(Number(zoom) * 100)}%`}
       />
       {(status || error) && (
-        <div className="word-status" role={error ? 'alert' : 'status'}>
+        <div
+          className={`word-status ${rendered ? 'word-status-progress' : ''}`}
+          role={error ? 'alert' : 'status'}
+        >
           {!error && <span className="spinner" />}
           {error || status}
           {error && <button onClick={onText}>尝试文字速览</button>}

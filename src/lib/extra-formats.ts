@@ -4,8 +4,8 @@ import { decodeText, extension } from './files';
 import { extractZipEntries } from './archive';
 import type { WorkbookSheet, WorkerResult } from './worker-types';
 
-export function readDelimited(bytes: Uint8Array, name: string): WorkbookSheet {
-  const { text: decoded } = decodeText(bytes);
+export function readDelimited(bytes: Uint8Array, name: string, partial = false): WorkbookSheet {
+  const { text: decoded } = decodeText(bytes, 'auto', partial);
   const text = decoded.replace(/^\uFEFF/, '');
   let delimiter = extension(name) === 'csv' ? ',' : extension(name) === 'psv' ? '|' : '\t';
   if (delimiter === ',') {
@@ -54,8 +54,8 @@ export function readDelimited(bytes: Uint8Array, name: string): WorkbookSheet {
       field += c;
     }
   }
-  if (quoted) throw new Error('表格存在未闭合的引号，无法完整解析。');
-  if (row.length || field || closed || text.endsWith(delimiter)) {
+  if (quoted && !partial) throw new Error('表格存在未闭合的引号，无法完整解析。');
+  if (!partial && (row.length || field || closed || text.endsWith(delimiter))) {
     cell();
     rows.push(row);
     columns = Math.max(columns, row.length);
@@ -144,71 +144,83 @@ function repeat(n: Node, key: string, limit: number) {
   const value = Number(attr(n, key) || 1);
   return Number.isSafeInteger(value) && value > 0 ? Math.min(value, limit + 1) : 1;
 }
-export function readOpenDocument(bytes: Uint8Array, kind: 'odt' | 'ods' | 'odp'): WorkerResult {
+export function readOpenDocument(
+  bytes: Uint8Array,
+  kind: 'odt' | 'ods' | 'odp',
+  publish?: (value: WorkerResult) => void,
+): WorkerResult {
   const content = extract(bytes, ['content.xml'])['content.xml'];
   if (!content) throw new Error('没有找到 OpenDocument 的 content.xml。');
   const nodes = xml(content);
   if (kind === 'odt') {
     const body = find(nodes, 'text')[0];
     if (!body) throw new Error('没有找到有效的 OpenDocument 文字内容。');
-    return { html: prose(kids(body)) };
+    const blocks = kids(body);
+    let html = '';
+    for (let index = 0; index < blocks.length; index += 200) {
+      html += prose(blocks.slice(index, index + 200));
+      publish?.({ html });
+    }
+    return { html };
   }
   if (kind === 'odp') {
     const pages = find(nodes, 'page');
     if (pages.length > 500) throw new Error('演示文稿超过 500 页。');
-    return {
-      slides: pages.map((page, i) => {
-        const paragraphs = find(kids(page), 'p').map(text).filter(Boolean);
-        return {
-          title: paragraphs[0] || attr(page, 'name') || `幻灯片 ${i + 1}`,
-          paragraphs: paragraphs.slice(1),
-        };
-      }),
-    };
+    const slides: NonNullable<WorkerResult['slides']> = [];
+    pages.forEach((page, i) => {
+      const paragraphs = find(kids(page), 'p').map(text).filter(Boolean);
+      slides.push({
+        title: paragraphs[0] || attr(page, 'name') || `幻灯片 ${i + 1}`,
+        paragraphs: paragraphs.slice(1),
+      });
+      publish?.({ slides });
+    });
+    return { slides };
   }
   const tables = find(nodes, 'table');
   if (tables.length > 100) throw new Error('工作簿超过 100 个工作表。');
   let cellBudget = 500_000;
-  return {
-    sheets: tables.map((table, i) => {
-      const rows: string[][] = [];
-      let columns = 0,
-        truncated = false;
-      for (const row of find(kids(table), 'table-row')) {
-        const cells: string[] = [];
-        for (const cell of kids(row).filter((n) =>
-          ['table-cell', 'covered-table-cell'].includes(tag(n)),
-        )) {
-          const value =
-            find(kids(cell), 'p').map(text).join('\n') ||
-            attr(cell, 'string-value') ||
-            attr(cell, 'date-value') ||
-            attr(cell, 'time-value') ||
-            attr(cell, 'boolean-value') ||
-            attr(cell, 'value');
-          const count = repeat(cell, 'number-columns-repeated', 100);
-          if (count > 100 - cells.length && value) truncated = true;
-          const available = Math.min(count, 100 - cells.length);
-          for (let c = 0; c < available; c++) cells.push(value);
-          if (cells.length === 100) break;
-        }
-        while (cells.length && !cells.at(-1)) cells.pop();
-        const count = repeat(row, 'number-rows-repeated', 5000);
-        if (count > 5000 - rows.length) truncated = true;
-        const available = Math.min(count, 5000 - rows.length);
-        cellBudget -= available * Math.max(1, cells.length);
-        if (cellBudget < 0) throw new Error('工作簿展开内容超过 500,000 个单元格。');
-        for (let r = 0; r < available; r++) rows.push([...cells]);
-        columns = Math.max(columns, cells.length);
-        if (rows.length === 5000) {
-          truncated = true;
-          break;
-        }
+  const sheets: WorkbookSheet[] = [];
+  tables.forEach((table, i) => {
+    const rows: string[][] = [];
+    let columns = 0,
+      truncated = false;
+    for (const row of find(kids(table), 'table-row')) {
+      const cells: string[] = [];
+      for (const cell of kids(row).filter((n) =>
+        ['table-cell', 'covered-table-cell'].includes(tag(n)),
+      )) {
+        const value =
+          find(kids(cell), 'p').map(text).join('\n') ||
+          attr(cell, 'string-value') ||
+          attr(cell, 'date-value') ||
+          attr(cell, 'time-value') ||
+          attr(cell, 'boolean-value') ||
+          attr(cell, 'value');
+        const count = repeat(cell, 'number-columns-repeated', 100);
+        if (count > 100 - cells.length && value) truncated = true;
+        const available = Math.min(count, 100 - cells.length);
+        for (let c = 0; c < available; c++) cells.push(value);
+        if (cells.length === 100) break;
       }
-      while (rows.length && !rows.at(-1)!.length) rows.pop();
-      return { name: attr(table, 'name') || `Sheet ${i + 1}`, rows, columns, truncated };
-    }),
-  };
+      while (cells.length && !cells.at(-1)) cells.pop();
+      const count = repeat(row, 'number-rows-repeated', 5000);
+      if (count > 5000 - rows.length) truncated = true;
+      const available = Math.min(count, 5000 - rows.length);
+      cellBudget -= available * Math.max(1, cells.length);
+      if (cellBudget < 0) throw new Error('工作簿展开内容超过 500,000 个单元格。');
+      for (let r = 0; r < available; r++) rows.push([...cells]);
+      columns = Math.max(columns, cells.length);
+      if (rows.length === 5000) {
+        truncated = true;
+        break;
+      }
+    }
+    while (rows.length && !rows.at(-1)!.length) rows.pop();
+    sheets.push({ name: attr(table, 'name') || `Sheet ${i + 1}`, rows, columns, truncated });
+    publish?.({ sheets });
+  });
+  return { sheets };
 }
 
 function resolvePart(base: string, relative: string): string {
@@ -222,12 +234,16 @@ function resolvePart(base: string, relative: string): string {
   }
   return segments.join('/');
 }
-export function readEpub(bytes: Uint8Array): WorkerResult {
+export function epubPackagePath(bytes: Uint8Array) {
   const container = extract(bytes, ['META-INF/container.xml'])['META-INF/container.xml'];
   if (!container) throw new Error('没有找到 EPUB 容器信息。');
   const root = find(xml(container), 'rootfile')[0];
   const packagePath = root && resolvePart('', attr(root, 'full-path'));
   if (!packagePath) throw new Error('EPUB 缺少书籍清单。');
+  return packagePath;
+}
+export function epubIndex(bytes: Uint8Array) {
+  const packagePath = epubPackagePath(bytes);
   const packageBytes = extract(bytes, [packagePath])[packagePath];
   if (!packageBytes) throw new Error('EPUB 书籍清单不存在。');
   const book = xml(packageBytes);
@@ -240,6 +256,12 @@ export function readEpub(bytes: Uint8Array): WorkerResult {
       throw new Error('EPUB 包含不支持的章节格式。');
     return resolvePart(packagePath, attr(item, 'href'));
   });
+  return paths.map((path, index) => ({ path, name: `第 ${index + 1} 章` }));
+}
+export function readEpub(bytes: Uint8Array, selected?: number): WorkerResult {
+  const paths = epubIndex(bytes)
+    .filter((_, index) => selected === undefined || selected === index)
+    .map((item) => item.path);
   const parts = extract(bytes, paths);
   return {
     chapters: paths.map((path, i) => {

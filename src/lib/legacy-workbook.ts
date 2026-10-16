@@ -1,7 +1,11 @@
 import { read, utils, set_cptable } from 'xlsx';
 import type { WorkbookSheet } from './worker-types';
 import { decodeText, extension } from './files';
-export async function readLegacyWorkbook(bytes: Uint8Array, name = ''): Promise<WorkbookSheet[]> {
+export async function readLegacyWorkbook(
+  bytes: Uint8Array,
+  name = '',
+  publish?: (sheets: WorkbookSheet[]) => void,
+): Promise<WorkbookSheet[]> {
   const table = await import('xlsx/dist/cpexcel.full.mjs');
   const decoders = new Map<number, TextDecoder>([
     [936, new TextDecoder('gb18030')],
@@ -35,13 +39,16 @@ export async function readLegacyWorkbook(bytes: Uint8Array, name = ''): Promise<
     cellDates: false,
     WTF: true,
   });
-  return book.SheetNames.map((name) => {
+  const sheets: WorkbookSheet[] = [];
+  for (const name of book.SheetNames) {
     const rows = utils.sheet_to_json<string[]>(book.Sheets[name], {
       header: 1,
       raw: false,
       defval: '',
     });
     const columns = rows.reduce((maximum, row) => Math.max(maximum, row.length), 0);
-    return { name, rows, columns, truncated: false };
-  });
+    sheets.push({ name, rows, columns, truncated: false });
+    publish?.(sheets);
+  }
+  return sheets;
 }

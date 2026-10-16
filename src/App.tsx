@@ -24,6 +24,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import Preview from './components/Preview';
+import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
 import { useAppUpdate } from './lib/use-app-update';
 import { version } from '../package.json';
@@ -107,6 +108,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [toast, setToast] = useState('');
+  const [previewError, setPreviewError] = useState('');
   const [opening, setOpening] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [menuTarget, setMenuTarget] = useState<HTMLDivElement | null>(null);
@@ -236,6 +238,7 @@ export default function App() {
     (incoming: PreviewFile[], initialMode: 'auto' | 'text' = 'auto') => {
       if (!incoming.length) return;
       setFiles(incoming);
+      setPreviewError('');
       setArchiveStack([]);
       setIndex(0);
       setMode(initialMode);
@@ -264,7 +267,12 @@ export default function App() {
         }
       } catch (e) {
         trace('load-error');
-        if (version === request.current) setToast(String(e));
+        if (version === request.current) {
+          setFiles([]);
+          setArchiveStack([]);
+          setSettingsOpen(false);
+          setPreviewError(String(e));
+        }
       } finally {
         if (version === request.current) setOpening(false);
       }
@@ -292,6 +300,7 @@ export default function App() {
     trace('close');
     request.current++;
     setFiles([]);
+    setPreviewError('');
     setArchiveStack([]);
     setIndex(0);
     setOpening(false);
@@ -347,10 +356,20 @@ export default function App() {
         void loadPaths(e.payload.paths, e.payload.text);
       }),
     );
-    void register(listen<string>('agent-selection-error', (event) => setToast(event.payload)));
+    void register(
+      listen<string>('agent-selection-error', (event) => {
+        request.current++;
+        setFiles([]);
+        setArchiveStack([]);
+        setSettingsOpen(false);
+        setOpening(false);
+        setPreviewError(event.payload);
+      }),
+    );
     void register(
       listen('preview-closed', () => {
         trace('native-close');
+        setPreviewError('');
         request.current++;
         setFiles([]);
         setArchiveStack([]);
@@ -370,7 +389,7 @@ export default function App() {
         if (!disposed && initial.paths.length) void loadPaths(initial.paths, initial.text);
       })
       .catch((error) => {
-        if (!disposed) setToast(`初始文件读取失败：${String(error)}`);
+        if (!disposed) setPreviewError(`初始文件读取失败：${String(error)}`);
       });
     return () => {
       disposed = true;
@@ -451,7 +470,7 @@ export default function App() {
         event.preventDefault();
         void choose();
       }
-      if (settingsOpen || !file) return;
+      if (settingsOpen || (!file && !previewError)) return;
       if (
         matchesShortcut(event, shortcut) &&
         !(
@@ -464,7 +483,7 @@ export default function App() {
         event.preventDefault();
         if (event.repeat) return;
         spaceAction.current = {
-          action: file ? (event.shiftKey ? 'text' : 'close') : 'choose',
+          action: previewError ? 'close' : file ? (event.shiftKey ? 'text' : 'close') : 'choose',
           version: request.current,
         };
         return;
@@ -517,7 +536,7 @@ export default function App() {
 
   return (
     <div
-      className={`app ${file ? 'has-preview' : ''}`}
+      className={`app ${file || previewError ? 'has-preview' : ''}`}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -725,7 +744,7 @@ export default function App() {
           )}
           <button
             className="icon-button close-button"
-            title={file ? '关闭预览 · Esc' : '隐藏窗口'}
+            title={file || previewError ? '关闭预览 · Esc' : '隐藏窗口'}
             onClick={closePreview}
           >
             <X size={18} />
@@ -733,7 +752,11 @@ export default function App() {
         </div>
       </header>
 
-      {file ? (
+      {previewError ? (
+        <main className="preview-container">
+          <UnsupportedPreview message={previewError} />
+        </main>
+      ) : file ? (
         <main
           className={`preview-container kind-${mode === 'auto' ? detectKind(file.name) : mode}`}
         >
@@ -744,7 +767,7 @@ export default function App() {
                   active={depth === archiveStack.length && !settingsOpen && !recording}
                 >
                   <Preview
-                    key={`${item.id}:${depth === archiveStack.length ? mode : 'auto'}`}
+                    key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
                     file={item}
                     mode={depth === archiveStack.length ? mode : 'auto'}
                     onOpen={(inside) => {
@@ -759,7 +782,7 @@ export default function App() {
           ))}
         </main>
       ) : null}
-      {(settingsOpen || !file) && (
+      {(settingsOpen || (!file && !previewError)) && (
         <div className="settings-workspace">
           <section
             className={'settings-dialog' + (!file ? ' welcome' : '')}
@@ -818,7 +841,7 @@ export default function App() {
                     <span className="step-number">1</span>
                     <div>
                       <h3>选中文件</h3>
-                      <p>在 {fileManager} 或桌面中，单击选中需要查看的文件。</p>
+                      <p>在 {fileManager} 或桌面中，单击选中需要查看的文件或文件夹。</p>
                     </div>
                     <FolderOpen size={22} />
                   </div>
@@ -826,7 +849,7 @@ export default function App() {
                     <span className="step-number">2</span>
                     <div>
                       <h3>按下预览快捷键</h3>
-                      <p>查看文件内容；按左右方向键切换同目录文件。</p>
+                      <p>查看文件内容；文件夹会显示左侧目录树，可逐层展开并预览文件。</p>
                     </div>
                     <kbd>{previewKey}</kbd>
                   </div>

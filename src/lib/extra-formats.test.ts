@@ -10,6 +10,35 @@ const odf = (body: string) =>
     ),
   });
 describe('additional preview formats', () => {
+  it('publishes OpenDocument blocks and sheets in order without losing final content', () => {
+    const document = odf(
+      '<office:text>' +
+        Array.from({ length: 401 }, (_, i) => `<text:p>paragraph ${i}</text:p>`).join('') +
+        '</office:text>',
+    );
+    const chunks: string[] = [];
+    const result = readOpenDocument(document, 'odt', (value) => chunks.push(value.html!));
+    expect(chunks).toHaveLength(3);
+    expect(chunks[0]).toContain('paragraph 199');
+    expect(chunks[0]).not.toContain('paragraph 200');
+    expect(chunks[2]).toBe(result.html);
+    expect(result).toEqual(readOpenDocument(document, 'odt'));
+    const workbook = odf(
+      '<office:spreadsheet>' +
+        ['first', 'second']
+          .map(
+            (name) =>
+              `<table:table table:name="${name}"><table:table-row><table:table-cell><text:p>${name}</text:p></table:table-cell></table:table-row></table:table>`,
+          )
+          .join('') +
+        '</office:spreadsheet>',
+    );
+    const names: string[][] = [];
+    readOpenDocument(workbook, 'ods', (value) =>
+      names.push(value.sheets!.map((sheet) => sheet.name)),
+    );
+    expect(names).toEqual([['first'], ['first', 'second']]);
+  });
   it('routes new document, table, book and source extensions', () => {
     for (const [name, kind] of [
       ['data.CSV', 'csv'],

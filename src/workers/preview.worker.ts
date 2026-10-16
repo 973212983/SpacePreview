@@ -4,8 +4,15 @@ import { decodeHtml } from '../lib/html';
 import { marked } from 'marked';
 import { decodeText, extension } from '../lib/files';
 import { listZip, extractZipEntries } from '../lib/archive';
-import { readWorkbook, readSlides } from '../lib/office';
-import { readDelimited, readOpenDocument, readEpub, readFictionBook } from '../lib/extra-formats';
+import { readWorkbook, readSlides, officeIndex } from '../lib/office';
+import {
+  readDelimited,
+  readOpenDocument,
+  readEpub,
+  readFictionBook,
+  epubIndex,
+  epubPackagePath,
+} from '../lib/extra-formats';
 import { readNotebook } from '../lib/notebook';
 import type { WorkerRequest, WorkerResult } from '../lib/worker-types';
 import { prepareDocx } from '../lib/docx';
@@ -62,8 +69,18 @@ marked.use({
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
     const { kind, bytes, name } = event.data;
+    const publish = event.data.progressive
+      ? (result: WorkerResult) => self.postMessage({ type: 'partial-result', result })
+      : undefined;
     let result: WorkerResult;
-    if (kind === 'dxf') result = { drawing: (await import('../lib/cad')).readDxf(bytes) };
+    if (event.data.phase === 'package' && kind === 'epub')
+      result = { units: [{ path: epubPackagePath(bytes), name: '清单' }] };
+    else if (
+      event.data.phase === 'index' &&
+      (kind === 'xlsx' || kind === 'pptx' || kind === 'epub')
+    )
+      result = { units: kind === 'epub' ? epubIndex(bytes) : officeIndex(bytes, kind) };
+    else if (kind === 'dxf') result = { drawing: (await import('../lib/cad')).readDxf(bytes) };
     else if (kind === 'model')
       result = await (await import('../lib/extended-model')).readExtendedModel(bytes, name);
     else if (kind === 'tiff')
@@ -137,10 +154,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       };
     } else if (kind === 'docx-layout') result = { data: prepareDocx(bytes) };
     else if (kind === 'csv')
-      result = { sheets: [readDelimited(bytes, name)], note: '只读表格 · 保留原始单元格内容' };
+      result = {
+        sheets: [readDelimited(bytes, name, event.data.partial)],
+        note: '只读表格 · 保留原始单元格内容',
+      };
     else if (kind === 'odt' || kind === 'ods' || kind === 'odp')
-      result = readOpenDocument(bytes, kind);
-    else if (kind === 'epub') result = readEpub(bytes);
+      result = readOpenDocument(bytes, kind, publish);
+    else if (kind === 'epub') result = readEpub(bytes, event.data.unit);
     else if (kind === 'fb2') result = readFictionBook(bytes);
     else if (kind === 'notebook')
       result = await readNotebook(
@@ -152,15 +172,17 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
             ignoreIllegals: true,
           }).value,
       );
-    else if (kind === 'xlsx') result = { sheets: readWorkbook(bytes) };
+    else if (kind === 'xlsx') result = { sheets: readWorkbook(bytes, event.data.unit) };
     else if (kind === 'legacy-xlsx')
       result = {
-        sheets: await (await import('../lib/legacy-workbook')).readLegacyWorkbook(bytes, name),
+        sheets: await (
+          await import('../lib/legacy-workbook')
+        ).readLegacyWorkbook(bytes, name, publish ? (sheets) => publish({ sheets }) : undefined),
         note: '只读表格 · 显示已保存的值，不执行宏',
       };
     else if (kind === 'asciidoc') {
       const { default: initialize } = await import('@asciidoctor/core');
-      const decoded = decodeText(bytes, event.data.encoding);
+      const decoded = decodeText(bytes, event.data.encoding, event.data.partial);
       result = {
         html: String(initialize().convert(decoded.text, { safe: 'secure', header_footer: false })),
         encoding: decoded.encoding,
@@ -169,7 +191,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       result = {
         animation: (await import('../lib/animation')).readAnimation(bytes, name, event.data.page),
       };
-    else if (kind === 'pptx') result = { slides: readSlides(bytes) };
+    else if (kind === 'pptx') result = { slides: readSlides(bytes, event.data.unit) };
     else if (kind === 'archive-entry') {
       const entry = listZip(bytes).find((e) => e.name === event.data.entryName && !e.directory);
       if (!entry) throw new Error('压缩包条目不存在。');
@@ -194,7 +216,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       const ext = extension(name);
       let { text, encoding } =
         kind === 'html' || ['html', 'htm', 'xhtml'].includes(ext)
-          ? decodeHtml(bytes, event.data.encoding)
+          ? decodeHtml(bytes, event.data.encoding, event.data.partial)
           : decodeText(bytes, event.data.encoding, event.data.partial);
       if (ext === 'json') {
         try {

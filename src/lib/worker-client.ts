@@ -1,7 +1,11 @@
 import type { WorkerRequest, WorkerResult } from './worker-types';
 
 // One disposable worker per operation: cancellation and timeouts stop parsing, not just the UI.
-export function parseInWorker(request: WorkerRequest, signal: AbortSignal): Promise<WorkerResult> {
+export function parseInWorker(
+  request: WorkerRequest,
+  signal: AbortSignal,
+  onPartial?: (result: WorkerResult) => void,
+): Promise<WorkerResult> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('../workers/preview.worker.ts', import.meta.url), {
       type: 'module',
@@ -30,6 +34,10 @@ export function parseInWorker(request: WorkerRequest, signal: AbortSignal): Prom
     }
     signal.addEventListener('abort', abort, { once: true });
     worker.onmessage = (event) => {
+      if (event.data.type === 'partial-result') {
+        onPartial?.(event.data.result);
+        return;
+      }
       cleanup();
       event.data.error ? reject(new Error(event.data.error)) : resolve(event.data);
     };

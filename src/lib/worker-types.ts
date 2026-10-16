@@ -11,6 +11,9 @@ export interface ArchiveEntry {
   sourcePath?: string;
 }
 export interface WorkerRequest {
+  progressive?: boolean;
+  phase?: 'index' | 'package';
+  unit?: number;
   encoding?: import('./files').TextEncoding;
   partial?: boolean;
   kind:
@@ -65,6 +68,7 @@ export interface WorkbookSheet {
   truncated: boolean;
 }
 export interface WorkerResult {
+  units?: { path: string; name: string }[];
   text?: string;
   html?: string;
   encoding?: string;

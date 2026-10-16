@@ -1,6 +1,6 @@
 import { decodeText, type TextEncoding } from './files';
 
-export function decodeHtml(bytes: Uint8Array, selected: TextEncoding = 'auto') {
+export function decodeHtml(bytes: Uint8Array, selected: TextEncoding = 'auto', partial = false) {
   if (
     selected === 'auto' &&
     !(bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) &&
@@ -10,11 +10,14 @@ export function decodeHtml(bytes: Uint8Array, selected: TextEncoding = 'auto') {
     const declared = /<meta\b[^>]*charset\s*=\s*["']?\s*([\w-]+)/i.exec(header)?.[1];
     if (declared) {
       try {
-        return { text: new TextDecoder(declared).decode(bytes), encoding: declared.toUpperCase() };
+        return {
+          text: new TextDecoder(declared).decode(bytes, { stream: partial }),
+          encoding: declared.toUpperCase(),
+        };
       } catch {
         /* Unknown charset: use existing detection. */
       }
     }
   }
-  return decodeText(bytes, selected);
+  return decodeText(bytes, selected, partial);
 }

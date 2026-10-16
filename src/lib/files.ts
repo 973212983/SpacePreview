@@ -43,6 +43,7 @@ export interface PreviewFile {
   modified: number;
   mime: string;
   path?: string;
+  directory?: boolean;
   blob?: Blob;
 }
 

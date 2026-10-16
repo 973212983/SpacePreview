@@ -33,7 +33,16 @@ import {
   type PreviewKind,
   type TextEncoding,
 } from '../lib/files';
-import { desktop, fileUrl, readBytes, readFullBytes, renderPresentation } from '../lib/bridge';
+import {
+  desktop,
+  fileUrl,
+  readBytes,
+  readRange,
+  readFullBytes,
+  renderPresentation,
+} from '../lib/bridge';
+import { readInStages } from '../lib/progressive-read';
+import { readStructuredInStages } from '../lib/progressive-office';
 import { readOfficeXmlPackage } from '../lib/office-range';
 import { parseInWorker } from '../lib/worker-client';
 import type { WorkerResult } from '../lib/worker-types';
@@ -55,6 +64,8 @@ import MailPreview from './MailPreview';
 import DiagramPreview from './DiagramPreview';
 import AnimationPreview from './AnimationPreview';
 import WebArchivePreview from './WebArchivePreview';
+import DirectoryPreview from './DirectoryPreview';
+import UnsupportedPreview from './UnsupportedPreview';
 
 const MiB = 1024 * 1024;
 
@@ -93,9 +104,10 @@ export default function Preview({
   const ambiguous = ['dot', 'mdc'].includes(extension(file.name));
   const [detected, setDetected] = useState<PreviewKind | null>(null);
   const [wordText, setWordText] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [htmlSource, setHtmlSource] = useState(true);
   useEffect(() => {
-    if (mode !== 'auto' || (registered !== 'binary' && !ambiguous)) return;
+    if (file.directory || mode !== 'auto' || (registered !== 'binary' && !ambiguous)) return;
     let active = true;
     readBytes(file, 16384)
       .then((bytes) => {
@@ -131,7 +143,19 @@ export default function Preview({
         : registered === 'binary' || ambiguous
           ? detected
           : registered;
+  if (file.directory) return <DirectoryPreview key={file.id} file={file} mode={mode} />;
   if (!kind) return <Loading />;
+  if (kind === 'binary' && mode === 'auto' && !showInfo)
+    return (
+      <UnsupportedPreview
+        file={file}
+        message={
+          unsupportedFormatHint(file.name) ||
+          '此文件类型暂不支持内容预览。你可以使用默认应用打开，或查看文件信息。'
+        }
+        onInfo={() => setShowInfo(true)}
+      />
+    );
   if (kind === 'html')
     return (
       <>
@@ -905,6 +929,8 @@ function ParsedPreview({
 }) {
   const [result, setResult] = useState<WorkerResult | null>(null);
   const [progress, setProgress] = useState(0);
+  const [backgroundLoading, setBackgroundLoading] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [binary, setBinary] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -963,9 +989,13 @@ function ParsedPreview({
     setResult(null);
     setBinary(false);
     setProgress(0);
+    setBackgroundLoading(false);
+    const stagedText =
+      file.size > 512 * 1024 && ['text', 'markdown', 'csv', 'asciidoc'].includes(kind);
+    const stagedOffice = file.size > MiB && ['xlsx', 'pptx', 'epub'].includes(kind);
     const largeOffice =
       file.size > limit && ['docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp'].includes(kind);
-    if (file.size > limit && container && !largeOffice) {
+    if (file.size > limit && container && !largeOffice && !stagedOffice) {
       setError(`此格式的快速预览上限为 ${limit / MiB} MB，请切换到文件信息或默认应用。`);
       return;
     }
@@ -992,6 +1022,34 @@ function ParsedPreview({
           return;
         }
       }
+      if (stagedText) {
+        setBackgroundLoading(true);
+        await readInStages(
+          file.size,
+          (offset, length) => readRange(file, offset, length),
+          controller.signal,
+          async (bytes, complete) => {
+            const value = await parseInWorker(
+              { kind, name: file.name, bytes, encoding, partial: !complete },
+              controller.signal,
+            );
+            if (!controller.signal.aborted) setResult(value);
+          },
+          setProgress,
+        );
+        return;
+      }
+      if (stagedOffice) {
+        setBackgroundLoading(true);
+        await readStructuredInStages(
+          file,
+          kind as 'xlsx' | 'pptx' | 'epub',
+          controller.signal,
+          setResult,
+          setProgress,
+        );
+        return;
+      }
       const bytes = await (largeOffice
         ? readOfficeXmlPackage(file, controller.signal)
         : [
@@ -1007,21 +1065,52 @@ function ParsedPreview({
           ? readFullBytes(file, controller.signal, setProgress)
           : readBytes(file, limit));
       const value = await parseInWorker(
-        { kind, name: file.name, bytes, encoding },
+        { kind, name: file.name, bytes, encoding, progressive: file.size > 512 * 1024 },
         controller.signal,
+        (value) => {
+          setBackgroundLoading(true);
+          setResult(value);
+        },
       );
       if (!controller.signal.aborted) setResult(value);
     };
-    void load().catch((e) => {
-      if (!controller.signal.aborted) setError(String(e.message ?? e));
-    });
+    void load()
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(String(e.message ?? e));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setBackgroundLoading(false);
+      });
     return () => controller.abort();
-  }, [file, kind, limit, container, encoding]);
-  if (error) return <ErrorNotice message={error} />;
+  }, [file, kind, limit, container, encoding, retry]);
+  if (error && !result) return <ErrorNotice message={error} />;
   if (binary) return <BinaryPreview file={file} textFallback />;
   if (!result) return <Loading progress={progress} />;
-  if (result.sheets || result.slides) return <OfficePreview result={result} />;
-  if (result.chapters) return <BookPreview chapters={result.chapters} />;
+  const loadingStatus = (backgroundLoading || error) && (
+    <div className="progressive-status" role={error ? 'alert' : 'status'}>
+      {!error && <span className="spinner" />}
+      <span>
+        {error
+          ? `后续内容加载失败：${error}`
+          : `后续内容加载中… ${progress}% · 当前仅显示已加载内容`}
+      </span>
+      {error && <button onClick={() => setRetry((value) => value + 1)}>重新加载</button>}
+    </div>
+  );
+  if (result.sheets || result.slides)
+    return (
+      <>
+        {loadingStatus}
+        <OfficePreview result={result} />
+      </>
+    );
+  if (result.chapters)
+    return (
+      <>
+        {loadingStatus}
+        <BookPreview chapters={result.chapters} />
+      </>
+    );
   const encodingControl = (
     <PreviewMenu>
       <label className="preview-menu-option">
@@ -1060,32 +1149,35 @@ function ParsedPreview({
   ) {
     // Block active content and remote images; documents cannot fetch tracking resources.
     return (
-      <DocumentReader
-        html={result.html ?? ''}
-        toolbar={
-          <>
-            <span className="reading-label">
-              {kind === 'legacy-doc'
-                ? result.note
-                : kind === 'markdown'
-                  ? 'Markdown'
-                  : kind === 'html'
-                    ? 'HTML · 安全阅读'
-                    : kind === 'fb2'
-                      ? 'FB2 · 电子书'
-                      : kind === 'notebook'
-                        ? 'Jupyter Notebook'
-                        : '文档 · 文字速览'}
-            </span>
-            {!container && encodingControl}
-            {onLayout && <button onClick={onLayout}>页面预览</button>}
-          </>
-        }
-        note={
-          result.note ||
-          (container && file.size > limit ? '大文档文字速览 · 按需读取 XML，跳过图片' : undefined)
-        }
-      />
+      <>
+        {loadingStatus}
+        <DocumentReader
+          html={result.html ?? ''}
+          toolbar={
+            <>
+              <span className="reading-label">
+                {kind === 'legacy-doc'
+                  ? result.note
+                  : kind === 'markdown'
+                    ? 'Markdown'
+                    : kind === 'html'
+                      ? 'HTML · 安全阅读'
+                      : kind === 'fb2'
+                        ? 'FB2 · 电子书'
+                        : kind === 'notebook'
+                          ? 'Jupyter Notebook'
+                          : '文档 · 文字速览'}
+              </span>
+              {!container && encodingControl}
+              {onLayout && <button onClick={onLayout}>页面预览</button>}
+            </>
+          }
+          note={
+            result.note ||
+            (container && file.size > limit ? '大文档文字速览 · 按需读取 XML，跳过图片' : undefined)
+          }
+        />
+      </>
     );
   }
   const continuous = file.size > 512 * 1024 || (result.lines ?? 0) > 5000;
@@ -1097,6 +1189,7 @@ function ParsedPreview({
     });
   return (
     <div className={`text-preview ${plainText ? 'plain-text' : 'source-code'}`}>
+      {loadingStatus}
       <TextAppearanceControls />
       <PreviewToolbar className="content-toolbar">
         <span className="toolbar-summary">

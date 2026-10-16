@@ -39,6 +39,13 @@ export async function pickNativeFiles(): Promise<PreviewFile[]> {
 export async function inspectPath(path: string): Promise<PreviewFile> {
   return invoke<PreviewFile>('inspect_file', { path });
 }
+export interface DirectoryPage {
+  entries: PreviewFile[];
+  nextOffset: number | null;
+}
+export function listDirectory(file: PreviewFile, offset = 0): Promise<DirectoryPage> {
+  return invoke('list_directory', { path: file.path, offset });
+}
 export async function renderPresentation(file: PreviewFile): Promise<PreviewFile> {
   return invoke<PreviewFile>('render_presentation', { path: file.path });
 }

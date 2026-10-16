@@ -133,7 +133,7 @@ fn selection() -> Result<Vec<String>, String> {
         serde_json::from_value(result["paths"].clone()).map_err(|e| e.to_string())?;
     Ok(paths
         .into_iter()
-        .filter(|path| Path::new(path).is_file())
+        .filter(|path| Path::new(path).is_file() || Path::new(path).is_dir())
         .take(100)
         .collect())
 }
@@ -166,7 +166,7 @@ fn queue_preview(pid: i32, text: bool) {
             result => {
                 let message = result
                     .err()
-                    .unwrap_or_else(|| "请选择普通文件；文件夹和系统项目暂不预览。".into());
+                    .unwrap_or_else(|| "请选择本地文件或文件夹；系统项目暂不支持预览。".into());
                 if let Some(window) = app_for_ui.get_webview_window("main") {
                     SOURCE_PID.store(pid, Ordering::Relaxed);
                     let _ = window.show();

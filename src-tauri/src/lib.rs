@@ -122,20 +122,22 @@ struct FileInfo {
     size: u64,
     modified: u64,
     mime: String,
+    directory: bool,
 }
 
 fn metadata(path: &Path) -> Result<FileInfo, String> {
     let info = fs::metadata(path).map_err(|e| e.to_string())?;
-    if !info.is_file() {
-        return Err("请选择文件，暂不预览文件夹。".into());
+    if !info.is_file() && !info.is_dir() {
+        return Err("此项目不是普通文件或文件夹。".into());
     }
     let name = path
         .file_name()
-        .ok_or("文件名无效")?
+        .unwrap_or_else(|| path.as_os_str())
         .to_string_lossy()
         .to_string();
     let path = path.to_string_lossy().to_string();
     Ok(FileInfo {
+        directory: info.is_dir(),
         id: path.clone(),
         mime: mime_guess::from_path(&path)
             .first_or_octet_stream()
@@ -161,9 +163,11 @@ fn inspect_file(
     let path = fs::canonicalize(path).map_err(|e| e.to_string())?;
     let info = metadata(&path)?;
     // Authorize exact files, never an entire drive. Only the local application can invoke this command.
-    app.asset_protocol_scope()
-        .allow_file(&path)
-        .map_err(|e| e.to_string())?;
+    if !info.directory {
+        app.asset_protocol_scope()
+            .allow_file(&path)
+            .map_err(|e| e.to_string())?;
+    }
     state
         .allowed
         .lock()
@@ -304,6 +308,9 @@ fn list_siblings(
     state: State<PreviewState>,
 ) -> Result<Vec<FileInfo>, String> {
     let current = authorized(&path, &state)?;
+    if current.is_dir() {
+        return Ok(vec![metadata(&current)?]);
+    }
     let parent = current.parent().ok_or("找不到父目录")?;
     let mut paths: Vec<PathBuf> = fs::read_dir(parent)
         .map_err(|e| e.to_string())?
@@ -399,9 +406,68 @@ fn open_default(path: String, state: State<PreviewState>) -> Result<(), String> 
     open::that_detached(path).map_err(|e| e.to_string())
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DirectoryPage {
+    entries: Vec<FileInfo>,
+    next_offset: Option<usize>,
+}
+
+// Read only one level and one bounded page. Never follow links outside this directory.
+fn directory_page(path: &Path, offset: usize) -> Result<DirectoryPage, String> {
+    let mut source = fs::read_dir(path).map_err(|e| e.to_string())?.skip(offset);
+    let mut entries = Vec::new();
+    let mut consumed = 0;
+    for entry in source.by_ref().take(500) {
+        consumed += 1;
+        let entry = entry.map_err(|e| e.to_string())?;
+        let Ok(canonical) = fs::canonicalize(entry.path()) else {
+            continue;
+        };
+        if !canonical.starts_with(path) || canonical == path {
+            continue;
+        }
+        if let Ok(info) = metadata(&canonical) {
+            entries.push(info);
+        }
+    }
+    entries.sort_by(|a, b| {
+        b.directory
+            .cmp(&a.directory)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(DirectoryPage {
+        entries,
+        next_offset: source.next().map(|_| offset + consumed),
+    })
+}
+
+#[tauri::command]
+async fn list_directory(
+    path: String,
+    offset: usize,
+    app: tauri::AppHandle,
+    state: State<'_, PreviewState>,
+) -> Result<DirectoryPage, String> {
+    let path = authorized(&path, &state)?;
+    let page = tauri::async_runtime::spawn_blocking(move || directory_page(&path, offset))
+        .await
+        .map_err(|e| e.to_string())??;
+    let mut allowed = state.allowed.lock().map_err(|e| e.to_string())?;
+    for entry in &page.entries {
+        if !entry.directory {
+            app.asset_protocol_scope()
+                .allow_file(&entry.path)
+                .map_err(|e| e.to_string())?;
+        }
+        allowed.insert(PathBuf::from(&entry.path));
+    }
+    Ok(page)
+}
+
 fn argument_paths(args: impl Iterator<Item = String>) -> Vec<String> {
     args.filter(|a| !a.starts_with('-'))
-        .filter(|a| Path::new(a).is_file())
+        .filter(|a| Path::new(a).is_file() || Path::new(a).is_dir())
         .collect()
 }
 
@@ -461,6 +527,7 @@ pub fn run() {
             read_prefix,
             read_range,
             list_siblings,
+            list_directory,
             open_default,
             initial_paths,
             autostart_enabled,
@@ -569,5 +636,35 @@ mod tests {
     fn unselected_files_cannot_be_read() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
         assert!(authorized(path.to_str().unwrap(), &PreviewState::default()).is_err());
+    }
+    #[test]
+    fn directory_preview_is_shallow_and_paginated() {
+        let root = std::env::temp_dir().join(format!("spacepreview-tree-{}", std::process::id()));
+        fs::create_dir_all(root.join("nested/deep")).unwrap();
+        for index in 0..502 {
+            fs::write(root.join(format!("file-{index}.txt")), b"test").unwrap();
+        }
+        let root = fs::canonicalize(root).unwrap();
+        assert!(metadata(&root).unwrap().directory);
+        let first = directory_page(&root, 0).unwrap();
+        assert_eq!(first.entries.len(), 500);
+        assert_eq!(first.next_offset, Some(500));
+        let second = directory_page(&root, 500).unwrap();
+        assert_eq!(second.entries.len(), 3);
+        assert_eq!(second.next_offset, None);
+        let ids: HashSet<_> = first
+            .entries
+            .iter()
+            .chain(second.entries.iter())
+            .map(|entry| &entry.id)
+            .collect();
+        assert_eq!(ids.len(), 503);
+        assert!(first
+            .entries
+            .iter()
+            .chain(second.entries.iter())
+            .all(|entry| entry.name != "deep"));
+        assert!(read_bounded(&root, 8).is_err());
+        fs::remove_dir_all(root).unwrap();
     }
 }

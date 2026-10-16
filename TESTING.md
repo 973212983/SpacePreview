@@ -1,5 +1,22 @@
 # 验证记录
 
+## 更多格式后加载（2026-10-16，未发布）
+
+- 大于 512 KiB 的文本、代码、Markdown、AsciiDoc、CSV 与 HTML 分阶段读取，首段 64 KiB；大于 1 MiB 的 XLSX、EPUB 和 PPTX 文本预览按工作表、章节或幻灯片读取。OpenDocument 和旧工作簿在结构解析后分批交付内容。
+- TypeScript/Vite 生产构建通过，25 个文件的 103 项单元测试通过，包含取消读取、短读失败、CSV 未闭合记录、多字节边界及 OpenDocument 分批结果完整性。
+- `smoke-progressive-formats.mjs` 在生产 CSP 下通过：暂停后续读取时首段可用、完整尾部、CSV 未完成记录不提前显示、失败保留内容及重试、HTML 样式/脚本过滤/滚动位置、Excel 后续工作表、EPUB 自定义清单路径与后续章节、PPTX 文本后续幻灯片。
+- `smoke-table-full.mjs` 通过大于 8 MB CSV 的 20,001 行、末尾滚动和 125 列 TSV；`smoke-large.mjs` 通过 80,001 行文本/UTF-16、全文搜索、Markdown、40 MB Word 和 ZIP 回归。
+- 后加载不等于所有格式都可流式解码：DOC/RTF、整图解码、模型及原生 Office 转换仍受现有引擎限制；结构化格式仍须先解析必要索引/XML，现有安全与预览容量限制保留。
+
+## 渐进 Word、目录树与整页提示（2026-10-16，未发布）
+
+- TypeScript/Vite 构建与 cargo check 通过；98 项前端单元测试通过。原生测试 22 项通过、2 项既有交互桌面/PowerPoint 测试跳过；本地 GNU 测试补齐 Common Controls 清单并将构建目录加入 PATH 后执行。
+- 新增 `smoke-progressive-directory.mjs`：12 页 DOCX 首次挂载 2 页、后续补齐，暂停图片读取时原排版首屏可用；恢复后图片正确显示，切换文件取消旧加载，未引用媒体不读取。
+- 目录树覆盖按需展开深层目录、分批加载、空目录、权限错误、收起后保留文件预览及 640×480 布局。系统选择失败和未知二进制显示整页提示，支持 Esc/Space 关闭与文件信息入口。
+- `smoke-reading.mjs` 通过字体、表格、图片、分页、目录导航、缩放和 RTF 回归；`smoke-large.mjs` 通过 40 MB Word、完整大文本和 ZIP 等既有回归。
+- 浏览器中的原生目录接口使用模拟数据，Rust 真实文件系统测试覆盖 503 项目录分两批、无重叠、不递归及拒绝按文件读取目录。未宣称已完成 Finder/Explorer 真机端到端验收。
+- DOCX 正文 XML 仍需先解析；旧版 DOC、RTF 及其他 Office 渲染引擎未改为流式排版。
+
 ## v0.10.9 引导与侧栏设置（2026-10-16）
 
 - TypeScript/Vite 生产构建通过；生产页面检查确认启动页没有文件选择按钮或示例列表，三个分类页及合并后的设置分组、选中状态、图标加载和预览/设置返回正常。
