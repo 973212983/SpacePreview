@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowDownToLine,
   ArrowLeft,
-  ArrowRight,
   Check,
   Eye,
   FileCode2,
   FolderOpen,
   Info,
   Keyboard,
+  Maximize2,
+  Minimize2,
   Minus,
   Square,
   Copy,
@@ -30,7 +31,7 @@ import { useAppUpdate } from './lib/use-app-update';
 import { version } from '../package.json';
 import { PreviewMenuTarget } from './components/PreviewToolbar';
 import { TextAppearanceProvider } from './components/TextAppearance';
-import { desktop, inspectPath, openDefault, pickNativeFiles, siblings } from './lib/bridge';
+import { desktop, inspectPath, openDefault, pickNativeFiles } from './lib/bridge';
 import { detectKind, formatSize, fromBrowser, type PreviewFile } from './lib/files';
 import {
   defaultShortcut,
@@ -58,6 +59,7 @@ type AgentStatus = {
   accessibility?: boolean;
   automation?: boolean;
   keyboard?: boolean;
+  lastKeyResult?: number;
 };
 const trace = (stage: string) => {
   if (desktop) void invoke('trace_preview', { stage }).catch(() => {});
@@ -91,7 +93,6 @@ const settingsPages = [
 export default function App() {
   const updater = useAppUpdate();
   const [files, setFiles] = useState<PreviewFile[]>([]);
-  const [index, setIndex] = useState(0);
   const [mode, setMode] = useState<'auto' | 'text' | 'info'>('auto');
   const [settings, setSettings] = useState(savedSettings);
   const [agent, setAgent] = useState<AgentStatus | null>(null);
@@ -121,7 +122,7 @@ export default function App() {
   const choosing = useRef(false);
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
   const previousArchiveDepth = useRef(0);
-  const file = archiveStack.at(-1) ?? files[index];
+  const file = archiveStack.at(-1) ?? files[0];
   useEffect(() => {
     if (!desktop || (file && !settingsOpen)) return;
     let cancelled = false;
@@ -247,10 +248,10 @@ export default function App() {
   const loadFiles = useCallback(
     (incoming: PreviewFile[], initialMode: 'auto' | 'text' = 'auto') => {
       if (!incoming.length) return;
-      setFiles(incoming);
+      setFiles(incoming.slice(0, 1));
       setPreviewError('');
       setArchiveStack([]);
-      setIndex(0);
+
       setMode(initialMode);
       setSettingsOpen(false);
       setMenuOpen(false);
@@ -262,19 +263,10 @@ export default function App() {
       const version = ++request.current;
       setOpening(true);
       try {
-        const incoming = await Promise.all(paths.map(inspectPath));
+        const incoming = await Promise.all(paths.slice(0, 1).map(inspectPath));
         if (version !== request.current) return;
         loadFiles(incoming, forceText ? 'text' : 'auto');
         trace('loaded');
-        if (incoming.length === 1) {
-          const adjacent = await siblings(incoming[0]);
-          if (version !== request.current) return;
-          const position = adjacent.findIndex((f) => f.path === incoming[0].path);
-          if (position >= 0) {
-            setFiles(adjacent);
-            setIndex(position);
-          }
-        }
       } catch (e) {
         trace('load-error');
         if (version === request.current) {
@@ -312,21 +304,10 @@ export default function App() {
     setFiles([]);
     setPreviewError('');
     setArchiveStack([]);
-    setIndex(0);
+
     setOpening(false);
     if (desktop) void invoke('hide_preview').catch((error) => setToast(String(error)));
   }, []);
-  const navigate = useCallback(
-    (direction: number) => {
-      setMode('auto');
-      if (archiveStack.length) {
-        if (direction < 0) setArchiveStack((stack) => stack.slice(0, -1));
-        return;
-      }
-      setIndex((i) => Math.max(0, Math.min(files.length - 1, i + direction)));
-    },
-    [files.length, archiveStack.length],
-  );
   const openFile = useCallback(async () => {
     if (!file) return;
     if (!file.path) {
@@ -398,7 +379,7 @@ export default function App() {
         request.current++;
         setFiles([]);
         setArchiveStack([]);
-        setIndex(0);
+
         setOpening(false);
       }),
     );
@@ -520,9 +501,9 @@ export default function App() {
       }
       if (!file) return;
       const plainKey = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
-      if (plainKey && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+      if (plainKey && event.key === 'ArrowLeft' && archiveStack.length) {
         event.preventDefault();
-        navigate(event.key === 'ArrowRight' ? 1 : -1);
+        setArchiveStack((stack) => stack.slice(0, -1));
       }
       if (
         event.key === 'Enter' &&
@@ -583,7 +564,6 @@ export default function App() {
       <input
         ref={input}
         type="file"
-        multiple
         hidden
         onChange={(e) => {
           loadFiles(Array.from(e.target.files ?? []).map(fromBrowser));
@@ -591,6 +571,22 @@ export default function App() {
         }}
       />
       <header className="titlebar" data-tauri-drag-region>
+        {macos && (
+          <div className="mac-window-controls">
+            <button title="关闭预览 · Esc" aria-label="关闭预览" onClick={closePreview}>
+              <X size={12} strokeWidth={3} />
+            </button>
+            {desktop && (
+              <button
+                title={maximized ? '恢复窗口' : '放大预览'}
+                aria-label={maximized ? '恢复窗口' : '放大预览'}
+                onClick={() => void toggleMaximize()}
+              >
+                {maximized ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+              </button>
+            )}
+          </div>
+        )}
         <div className="title-left">
           {file ? (
             <>
@@ -609,7 +605,7 @@ export default function App() {
                 <button
                   className="archive-back-button"
                   title="返回列表 · ←"
-                  onClick={() => navigate(-1)}
+                  onClick={() => setArchiveStack((stack) => stack.slice(0, -1))}
                 >
                   <ArrowLeft size={15} /> 返回列表
                 </button>
@@ -617,27 +613,6 @@ export default function App() {
               <div className="file-title">
                 <strong title={`${file.name} · ${formatSize(file.size)}`}>{file.name}</strong>
               </div>
-              {!archiveStack.length && files.length > 1 && (
-                <div className="file-navigation">
-                  <button
-                    title="上一个文件 · ←"
-                    disabled={index === 0}
-                    onClick={() => navigate(-1)}
-                  >
-                    <ArrowLeft size={14} />
-                  </button>
-                  <span>
-                    {index + 1}/{files.length}
-                  </span>
-                  <button
-                    title="下一个文件 · →"
-                    disabled={index >= files.length - 1}
-                    onClick={() => navigate(1)}
-                  >
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
-              )}
             </>
           ) : (
             <>
@@ -789,7 +764,7 @@ export default function App() {
               </button>
             </>
           )}
-          {!(desktop && macos) && (
+          {!macos && (
             <button
               className="icon-button close-button"
               title={file || previewError ? '关闭预览 · Esc' : '隐藏窗口'}
@@ -809,7 +784,7 @@ export default function App() {
         <main
           className={`preview-container kind-${mode === 'auto' ? detectKind(file.name) : mode}`}
         >
-          {[files[index], ...archiveStack].map((item, depth) => (
+          {[files[0], ...archiveStack].map((item, depth) => (
             <div className="preview-layer" hidden={depth !== archiveStack.length} key={item.id}>
               <PreviewMenuTarget.Provider value={depth === archiveStack.length ? menuTarget : null}>
                 <TextAppearanceProvider
@@ -1102,6 +1077,22 @@ export default function App() {
                         </button>
                       </div>
                     )}
+                  {desktop && macos && agent && (
+                    <p className="shortcut-help" role="status">
+                      最近一次预览按键：
+                      {
+                        [
+                          '尚未收到',
+                          '前台不是 Finder',
+                          'Finder 自动化权限未就绪',
+                          'Finder 焦点读取失败或超时',
+                          '焦点在输入框、工具栏或侧边栏',
+                          '未识别到 Finder 文件区',
+                          '已接管',
+                        ][agent.lastKeyResult ?? 0]
+                      }
+                    </p>
+                  )}
                   <h3>预览快捷键</h3>
                   <div className="shortcut-editors">
                     {(['windowsShortcut', 'macosShortcut'] as const)
@@ -1152,7 +1143,6 @@ export default function App() {
                     {[
                       ['选择文件', macos ? '⌘O' : 'Ctrl + O'],
                       ['关闭预览', `${previewKey} / Esc`],
-                      ['切换文件', '←  →'],
                       ['纯文本预览', `Shift + ${previewKey}`],
                       ['复制路径', macos ? '⇧⌘C' : 'Ctrl + Shift + C'],
                       ['默认应用打开', 'Enter'],

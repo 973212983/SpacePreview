@@ -12,6 +12,9 @@ static atomic_bool tapRunning = false;
 static atomic_bool automationAllowed = false;
 static CFMachPortRef keyboardTap;
 static atomic_uint_fast64_t shortcutConfig = 49;
+static atomic_uint lastKeyResult = 0;
+uint32_t sp_mac_last_key_result(void) { return atomic_load(&lastKeyResult); }
+
 
 void sp_mac_set_shortcut(uint32_t key, uint64_t flags) {
     atomic_store(&shortcutConfig, key | (flags << 16));
@@ -37,18 +40,20 @@ static id attribute(AXUIElementRef element, CFStringRef name) {
 }
 
 static bool fileAreaHasFocus(void) {
-    if (!finderIsFrontmost()) return false;
-    AXUIElementRef system = AXUIElementCreateSystemWide();
-    // Never let an unresponsive Finder hold the global keyboard callback.
-    AXUIElementSetMessagingTimeout(system, 0.005f);
+    if (!finderIsFrontmost()) { atomic_store(&lastKeyResult, 1); return false; }
+    AXUIElementRef system = AXUIElementCreateApplication(sp_mac_frontmost_pid());
+    // Query Finder directly; 5 ms was too short for a busy accessibility server.
+    AXUIElementSetMessagingTimeout(system, 0.02f);
     id focused = attribute(system, kAXFocusedUIElementAttribute);
     CFRelease(system);
-    if (!focused) return false;
+    if (!focused) { atomic_store(&lastKeyResult, 3); return false; }
     bool fileArea = false;
     id current = focused;
-    for (int depth = 0; current && depth < 8; depth++) {
+    const CFAbsoluteTime deadline = CFAbsoluteTimeGetCurrent() + 0.12;
+    for (int depth = 0; current && depth < 16; depth++) {
+        if (CFAbsoluteTimeGetCurrent() >= deadline) break;
         AXUIElementRef element = (__bridge AXUIElementRef)current;
-        AXUIElementSetMessagingTimeout(element, 0.005f);
+        AXUIElementSetMessagingTimeout(element, 0.02f);
         NSString *role = attribute(element, kAXRoleAttribute);
         NSString *subrole = attribute(element, kAXSubroleAttribute);
         NSString *identifier = attribute(element, CFSTR("AXIdentifier"));
@@ -60,16 +65,21 @@ static bool fileAreaHasFocus(void) {
             [subrole isEqualToString:@"AXSourceList"] ||
             [subrole isEqualToString:@"AXSearchField"] ||
             (identifier && [identifier rangeOfString:@"sidebar" options:NSCaseInsensitiveSearch].location != NSNotFound)) {
+            atomic_store(&lastKeyResult, 4);
             return false;
         }
-        if ([@[@"AXList", @"AXTable", @"AXBrowser", @"AXLayoutArea", @"AXScrollArea"]
+        if ([@[@"AXList", @"AXTable", @"AXOutline", @"AXCollection", @"AXBrowser", @"AXLayoutArea", @"AXScrollArea"]
             containsObject:role ?: @""]) {
             fileArea = true;
         }
-        if ([role isEqualToString:@"AXWindow"] || [role isEqualToString:@"AXApplication"]) break;
+        if ([role isEqualToString:@"AXWindow"] || [role isEqualToString:@"AXApplication"]) {
+            atomic_store(&lastKeyResult, fileArea ? 6 : 5);
+            return fileArea;
+        }
         current = attribute(element, kAXParentAttribute);
     }
-    return fileArea;
+    atomic_store(&lastKeyResult, 3);
+    return false;
 }
 
 static CGEventRef handleKey(CGEventTapProxy proxy, CGEventType type,
@@ -92,10 +102,10 @@ static CGEventRef handleKey(CGEventTapProxy proxy, CGEventType type,
         bool repeat = CGEventGetIntegerValueField(event, kCGKeyboardEventAutorepeat) != 0;
         int32_t pid = 0;
         CGEventFlags flags = CGEventGetFlags(event);
-        if (type == kCGEventKeyDown && !repeat && atomic_load(&automationAllowed) &&
-            (flags & (kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand)) == (config >> 16) &&
-            fileAreaHasFocus()) {
-            pid = sp_mac_frontmost_pid();
+        if (type == kCGEventKeyDown && !repeat &&
+            (flags & (kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand)) == (config >> 16)) {
+            if (!atomic_load(&automationAllowed)) atomic_store(&lastKeyResult, 2);
+            else if (fileAreaHasFocus()) pid = sp_mac_frontmost_pid();
         }
         return spaceCallback(type, flags, pid, repeat) ? NULL : event;
     }

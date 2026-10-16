@@ -379,32 +379,6 @@ button:disabled:hover {
   display: flex;
   flex-direction: column;
 }
-.file-navigation {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.file-navigation {
-  gap: 15px;
-}
-.file-navigation button {
-  display: grid;
-  place-items: center;
-  border-radius: 4px;
-  padding: 5px;
-}
-.file-navigation button:hover {
-  background: var(--subtle);
-}
-.file-navigation > span {
-  font-size: 11px;
-  color: var(--text);
-  min-width: 32px;
-  text-align: center;
-}
-.file-navigation b {
-  color: var(--muted);
-}
 .menu-container {
   position: relative;
 }
@@ -3081,13 +3055,6 @@ button:disabled:hover {
 .has-preview .title-right {
   gap: 2px;
 }
-.titlebar .file-navigation {
-  flex-shrink: 0;
-  gap: 2px;
-}
-.titlebar .file-navigation > span {
-  font-size: 10px;
-}
 .archive-back-button {
   flex-shrink: 0;
 }
@@ -3160,9 +3127,6 @@ button:disabled:hover {
   .has-preview .title-left {
     gap: 5px;
     max-width: calc(100% - 130px);
-  }
-  .titlebar .file-navigation > span {
-    display: none;
   }
 }
 
@@ -3349,7 +3313,7 @@ button:disabled:hover {
   white-space: nowrap;
 }
 
-/* macOS uses the native title bar above this content toolbar. */
+/* Compact macOS content toolbar. */
 :root[data-platform='macos'] {
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
   --font-reading: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
@@ -3419,9 +3383,9 @@ button:disabled:hover {
   transform: none;
 }
 
-/* Quick Look: one compact toolbar, with native controls in the same row. */
+/* Quick Look: one compact toolbar with monochrome window controls. */
 :root[data-platform='macos'] .native-mac .titlebar {
-  padding-left: 92px;
+  padding-left: 14px;
 }
 :root[data-platform='macos'] .mac-home-mark,
 :root[data-platform='macos'] .settings-brand {
@@ -3515,4 +3479,25 @@ button:disabled:hover {
 :root[data-platform='macos'] .preview-container {
   border-radius: 10px 10px 0 0;
   overflow: hidden;
+}
+
+.mac-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.mac-window-controls button {
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--panel);
+  opacity: 0.8;
+}
+.mac-window-controls button:hover {
+  opacity: 1;
 }

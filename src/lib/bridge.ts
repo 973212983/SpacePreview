@@ -32,7 +32,7 @@ export function systemFileIcon(
   return pending;
 }
 export async function pickNativeFiles(): Promise<PreviewFile[]> {
-  const paths = await open({ multiple: true, directory: false });
+  const paths = await open({ multiple: false, directory: false });
   if (!paths) return [];
   return Promise.all((Array.isArray(paths) ? paths : [paths]).map(inspectPath));
 }
@@ -92,7 +92,4 @@ export function fileUrl(file: PreviewFile): { url: string; dispose: () => void }
 }
 export async function openDefault(file: PreviewFile) {
   if (file.path) await invoke('open_default', { path: file.path });
-}
-export async function siblings(file: PreviewFile): Promise<PreviewFile[]> {
-  return file.path ? invoke('list_siblings', { path: file.path }) : [];
 }

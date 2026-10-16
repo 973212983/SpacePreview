@@ -16,6 +16,7 @@ extern "C" {
     fn sp_mac_start(callback: extern "C" fn(u32, u64, i32, bool) -> bool);
     fn sp_mac_set_shortcut(key: u32, flags: u64);
     fn sp_mac_status() -> u32;
+    fn sp_mac_last_key_result() -> u32;
     fn sp_mac_request_permissions();
     fn sp_mac_frontmost_pid() -> i32;
     fn sp_mac_copy_selection() -> *mut c_char;
@@ -94,6 +95,7 @@ pub fn status() -> serde_json::Value {
         "accessibility": native & 1 != 0,
         "automation": native & 4 != 0,
         "keyboard": native & 2 != 0,
+        "lastKeyResult": unsafe { sp_mac_last_key_result() },
     })
 }
 
