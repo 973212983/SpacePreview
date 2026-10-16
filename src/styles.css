@@ -3348,3 +3348,73 @@ button:disabled:hover {
   color: var(--accent);
   white-space: nowrap;
 }
+
+/* macOS uses the native title bar above this content toolbar. */
+:root[data-platform='macos'] {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  --font-reading: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  --font-code: 'SFMono-Regular', Menlo, monospace;
+  --accent: #007aff;
+}
+:root[data-platform='macos'] .titlebar {
+  height: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  gap: 12px;
+}
+:root[data-platform='macos'] .brand {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+:root[data-platform='macos'] .settings-workspace {
+  inset-block-start: 44px;
+}
+:root[data-platform='macos'] .settings-sidebar {
+  background: var(--subtle);
+  border-right: 1px solid var(--line);
+  padding: 24px 12px 16px;
+}
+:root[data-platform='macos'] .settings-sidebar nav button {
+  border-radius: 7px;
+  padding: 9px 12px;
+  gap: 10px;
+}
+:root[data-platform='macos'] .settings-sidebar nav button[aria-current='page'] {
+  background: var(--accent);
+  color: white;
+}
+:root[data-platform='macos'] .settings-sidebar nav button[aria-current='page'] svg {
+  color: inherit;
+}
+:root[data-platform='macos'] .settings-sidebar nav button[aria-current='page']::before {
+  display: none;
+}
+:root[data-platform='macos'] .settings-main {
+  padding: 24px 24px 0;
+}
+:root[data-platform='macos'] .dialog-header h2 {
+  font-size: 22px;
+  font-weight: 600;
+}
+:root[data-platform='macos'] .settings-page .setting-row {
+  border-radius: 10px;
+  padding: 16px;
+}
+:root[data-platform='macos'] .dropdown {
+  border-radius: 10px;
+  padding: 5px;
+  box-shadow: 0 8px 28px #0003;
+}
+:root[data-platform='macos'] .dropdown button {
+  border-radius: 5px;
+}
+:root[data-platform='macos'] .dropdown button:hover {
+  color: white;
+  background: var(--accent);
+}
+:root[data-platform='macos'] button {
+  cursor: default;
+}
+:root[data-platform='macos'] button:not(:disabled):active {
+  transform: none;
+}

@@ -8,5 +8,22 @@
       "infoPlist": "Info.plist",
       "entitlements": "Entitlements.plist"
     }
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "瞬览 · SpacePreview",
+        "label": "main",
+        "width": 1000,
+        "height": 760,
+        "minWidth": 640,
+        "minHeight": 480,
+        "decorations": true,
+        "center": true,
+        "visible": false,
+        "dragDropEnabled": true,
+        "titleBarStyle": "Visible"
+      }
+    ]
   }
 }

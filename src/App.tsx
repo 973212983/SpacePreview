@@ -96,6 +96,9 @@ export default function App() {
   const [settings, setSettings] = useState(savedSettings);
   const [agent, setAgent] = useState<AgentStatus | null>(null);
   const macos = agent?.platform === 'macos' || /Mac/i.test(navigator.platform);
+  useEffect(() => {
+    document.documentElement.dataset.platform = macos ? 'macos' : 'other';
+  }, [macos]);
   const fileManager = macos ? 'Finder' : '资源管理器';
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsPage, setSettingsPage] = useState<(typeof settingsPages)[number]['id']>('guide');
@@ -206,6 +209,13 @@ export default function App() {
     localStorage.setItem('space-settings', JSON.stringify(settings));
     document.documentElement.dataset.theme = settings.theme;
   }, [settings]);
+  useEffect(() => {
+    if (desktop && macos) {
+      void getCurrentWindow()
+        .setTheme(settings.theme === 'system' ? null : settings.theme)
+        .catch((error) => setToast(`窗口外观同步失败：${String(error)}`));
+    }
+  }, [macos, settings.theme]);
   useEffect(() => {
     if (!desktop) return;
     let cancelled = false;
@@ -345,6 +355,21 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!desktop || !macos) return;
+    const stop = listen<string>('app-menu', ({ payload }) => {
+      setMenuOpen(false);
+      if (payload === 'open') void choose();
+      else if (payload === 'settings' || payload === 'about' || payload === 'guide') {
+        setSettingsPage(payload);
+        setSettingsOpen(true);
+      }
+    });
+    return () => {
+      void stop.then((unlisten) => unlisten());
+    };
+  }, [macos, choose]);
+
+  useEffect(() => {
     if (!desktop) return;
     const unlisteners: (() => void)[] = [];
     let disposed = false;
@@ -466,7 +491,12 @@ export default function App() {
         if (settingsOpen) setSettingsOpen(false);
         else closePreview();
       }
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'o') {
+      if (
+        !(desktop && macos) &&
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        event.key.toLowerCase() === 'o'
+      ) {
         event.preventDefault();
         void choose();
       }
@@ -723,7 +753,7 @@ export default function App() {
               )}
             </div>
           )}
-          {desktop && (
+          {desktop && !macos && (
             <>
               <button
                 className="icon-button"
@@ -742,13 +772,15 @@ export default function App() {
               </button>
             </>
           )}
-          <button
-            className="icon-button close-button"
-            title={file || previewError ? '关闭预览 · Esc' : '隐藏窗口'}
-            onClick={closePreview}
-          >
-            <X size={18} />
-          </button>
+          {!(desktop && macos) && (
+            <button
+              className="icon-button close-button"
+              title={file || previewError ? '关闭预览 · Esc' : '隐藏窗口'}
+              onClick={closePreview}
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -1000,39 +1032,41 @@ export default function App() {
                     )}
                   <h3>预览快捷键</h3>
                   <div className="shortcut-editors">
-                    {(['windowsShortcut', 'macosShortcut'] as const).map((platform) => (
-                      <div className="shortcut-editor" key={platform}>
-                        <span>{platform === 'windowsShortcut' ? 'Windows' : 'macOS'}</span>
-                        <button
-                          className={`shortcut-record ${recording === platform ? 'recording' : ''}`}
-                          aria-label={`修改 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 预览快捷键`}
-                          onClick={() => {
-                            spaceAction.current = null;
-                            setRecording(platform);
-                            setShortcutError('');
-                          }}
-                          onBlur={() =>
-                            setRecording((current) => (current === platform ? null : current))
-                          }
-                        >
-                          <Keyboard size={15} />
-                          {recording === platform
-                            ? '请按快捷键…'
-                            : shortcutLabel(settings[platform], platform === 'macosShortcut')}
-                        </button>
-                        <button
-                          className="shortcut-reset"
-                          aria-label={`恢复 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 默认快捷键`}
-                          onClick={() => {
-                            setRecording(null);
-                            setShortcutError('');
-                            setSettings((s) => ({ ...s, [platform]: defaultShortcut }));
-                          }}
-                        >
-                          重置
-                        </button>
-                      </div>
-                    ))}
+                    {(['windowsShortcut', 'macosShortcut'] as const)
+                      .filter((platform) => !macos || platform === 'macosShortcut')
+                      .map((platform) => (
+                        <div className="shortcut-editor" key={platform}>
+                          <span>{platform === 'windowsShortcut' ? 'Windows' : 'macOS'}</span>
+                          <button
+                            className={`shortcut-record ${recording === platform ? 'recording' : ''}`}
+                            aria-label={`修改 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 预览快捷键`}
+                            onClick={() => {
+                              spaceAction.current = null;
+                              setRecording(platform);
+                              setShortcutError('');
+                            }}
+                            onBlur={() =>
+                              setRecording((current) => (current === platform ? null : current))
+                            }
+                          >
+                            <Keyboard size={15} />
+                            {recording === platform
+                              ? '请按快捷键…'
+                              : shortcutLabel(settings[platform], platform === 'macosShortcut')}
+                          </button>
+                          <button
+                            className="shortcut-reset"
+                            aria-label={`恢复 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 默认快捷键`}
+                            onClick={() => {
+                              setRecording(null);
+                              setShortcutError('');
+                              setSettings((s) => ({ ...s, [platform]: defaultShortcut }));
+                            }}
+                          >
+                            重置
+                          </button>
+                        </div>
+                      ))}
                   </div>
                   <p
                     className={`shortcut-help ${shortcutError ? 'shortcut-error' : ''}`}
@@ -1044,14 +1078,14 @@ export default function App() {
                   <h3>常用操作</h3>
                   <div className="shortcuts">
                     {[
-                      ['选择文件', 'Ctrl / ⌘ + O'],
+                      ['选择文件', macos ? '⌘O' : 'Ctrl + O'],
                       ['关闭预览', `${previewKey} / Esc`],
                       ['切换文件', '←  →'],
                       ['纯文本预览', `Shift + ${previewKey}`],
-                      ['复制路径', 'Ctrl / ⌘ + Shift + C'],
+                      ['复制路径', macos ? '⇧⌘C' : 'Ctrl + Shift + C'],
                       ['默认应用打开', 'Enter'],
-                      ['增大 / 减小文字', 'Ctrl / ⌘ + + / −'],
-                      ['滚轮调整文字', 'Ctrl / ⌘ + 滚轮上 / 下'],
+                      ['增大 / 减小文字', macos ? '⌘ + / −' : 'Ctrl + + / −'],
+                      ['滚轮调整文字', macos ? '⌘ + 滚轮上 / 下' : 'Ctrl + 滚轮上 / 下'],
                     ].map(([label, key]) => (
                       <div key={label}>
                         <span>{label}</span>
