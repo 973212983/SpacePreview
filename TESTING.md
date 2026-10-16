@@ -1,3 +1,15 @@
+# 验证记录
+
+## 应用内更新（2026-10-16，待发布）
+
+- `npm test`：24 个文件、98 项测试通过，含三平台更新清单映射、缺失/空包/无签名拒绝。
+- TypeScript/Vite 生产构建、Rust `cargo check --lib`、Rust 格式检查通过。
+- `scripts/smoke-updater.mjs` 在桌面 CSP 下通过：浏览器禁用、启动/手动检查、断网重试、重复点击、更新资源释放、纯文本版本说明、已知/未知总长度的下载进度、设置关闭后恢复、签名/安装失败不重启、重启失败单独重试、640×480 深色布局。
+- 现有 `scripts/smoke-preferences-audit.mjs` 回归通过。已查看 `test-results/updater-available.png` 和 `test-results/updater-small-dark.png`。
+- 使用 Tauri CLI 对本地测试数据签名，再使用与更新器相同的 `minisign-verify` 库验证：应用配置内公钥接受原始签名数据，拒绝篡改后的数据。此步骤没有安装或上传更新包。
+- 本机只有 Rust GNU 工具链。原生测试程序初次运行因未激活 Common Controls v6，缺少 `TaskDialogIndirect` 入口而失败；仅为生成的测试可执行文件嵌入 v6 清单后，21 项通过、2 项交互依赖测试按原设置跳过。未修改项目原生逻辑来绕过该环境问题。
+- 本机未安装 MSVC 目标及 C++ Build Tools，正式 Windows MSVC 安装包构建未完成；macOS 实机升级未验证。界面测试使用模拟更新接口，不等同于真实安装覆盖升级。
+
 # v0.9.13 验证记录
 
 ## v0.9.13 偏好设置与自定义预览快捷键（2026-10-11）

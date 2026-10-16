@@ -29,6 +29,9 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import Preview from './components/Preview';
+import UpdateSettings from './components/UpdateSettings';
+import { useAppUpdate } from './lib/use-app-update';
+import { version } from '../package.json';
 import { PreviewMenuTarget } from './components/PreviewToolbar';
 import { TextAppearanceProvider } from './components/TextAppearance';
 import { desktop, inspectPath, openDefault, pickNativeFiles, siblings } from './lib/bridge';
@@ -92,6 +95,7 @@ const sampleDetails = [
 ];
 
 export default function App() {
+  const updater = useAppUpdate();
   const [files, setFiles] = useState<PreviewFile[]>([]);
   const [index, setIndex] = useState(0);
   const [mode, setMode] = useState<'auto' | 'text' | 'info'>('auto');
@@ -869,10 +873,10 @@ export default function App() {
       {!file && (
         <footer className="home-footer">
           <span>
-            <span className="status-dot muted" /> 全部在本地发生
+            <span className="status-dot muted" /> 文件预览在本地完成
           </span>
           <span>
-            SPACEPREVIEW <b>·</b> v0.10.7
+            SPACEPREVIEW <b>·</b> v{version}
           </span>
           <span>为「只想看一眼」而设计</span>
         </footer>
@@ -901,6 +905,7 @@ export default function App() {
                 <X size={19} />
               </button>
             </div>
+            <UpdateSettings updater={updater} />
             <h3>外观</h3>
             <div className="theme-options">
               {(['system', 'light', 'dark'] as const).map((theme, i) => (
@@ -1079,6 +1084,23 @@ export default function App() {
               </p>
             </div>
           </section>
+        </div>
+      )}
+      {updater.notice && !settingsOpen && (
+        <div className="update-notice" role="status">
+          <span>瞬览 v{updater.state.version} 已可更新</span>
+          <button
+            className="update-button"
+            onClick={() => {
+              setSettingsOpen(true);
+              updater.dismiss();
+            }}
+          >
+            查看更新
+          </button>
+          <button className="icon-button" aria-label="稍后更新" onClick={updater.dismiss}>
+            <X size={15} />
+          </button>
         </div>
       )}
       {dragging && (

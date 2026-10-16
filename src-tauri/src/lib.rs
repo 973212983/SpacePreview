@@ -451,6 +451,8 @@ pub fn run() {
             show_preview_files(app, paths, text);
         }))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(PreviewState::default())
         .invoke_handler(tauri::generate_handler![
             inspect_file,

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
+import { updateAssetName } from './updater-manifest.mjs';
 
 const [target, platform] = process.argv.slice(2);
 const targets = {
@@ -56,4 +57,14 @@ const installer = path.join(bundle, installers[0]);
 if (!windows) execFileSync('hdiutil', ['verify', installer], { stdio: 'inherit' });
 const name = `SpacePreview-${version}-${platform}${windows ? '-setup.exe' : '.dmg'}`;
 fs.copyFileSync(installer, path.join(destination, name));
+// NSIS itself is the Windows update; macOS requires the signed .app archive.
+const updateName = updateAssetName(version, platform);
+const updateFile = windows
+  ? installer
+  : path.join(built, 'bundle', 'macos', 'SpacePreview.app.tar.gz');
+if (!fs.statSync(updateFile).size) throw new Error('Empty updater artifact.');
+const signature = fs.readFileSync(`${updateFile}.sig`, 'utf8').trim();
+if (!signature) throw new Error('Missing updater signature.');
+if (!windows) fs.copyFileSync(updateFile, path.join(destination, updateName));
+fs.writeFileSync(path.join(destination, `${updateName}.sig`), `${signature}\n`);
 console.log(`Verified ${platform}: ${name}`);

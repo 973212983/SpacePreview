@@ -1,6 +1,6 @@
 [package]
 name = "space-preview"
-version = "0.10.7"
+version = "0.10.8"
 description = "A quiet, local-first file previewer"
 authors = ["SpacePreview"]
 edition = "2021"
@@ -17,6 +17,9 @@ cc = "1"
 tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = "2"
+# Updates use NSIS directly and macOS .app.tar.gz; legacy Windows ZIP bundles are unnecessary.
+tauri-plugin-updater = { version = "2.14", default-features = false, features = ["rustls-tls", "system-proxy"] }
+tauri-plugin-process = "2.4"
 auto-launch = "0.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

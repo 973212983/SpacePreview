@@ -1,7 +1,7 @@
 {
   "name": "space-preview",
   "private": true,
-  "version": "0.10.7",
+  "version": "0.10.8",
   "type": "module",
   "scripts": {
     "predev": "node scripts/prepare-pdf.mjs && node scripts/prepare-formats.mjs",
@@ -11,6 +11,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "test:ui": "node scripts/smoke-ui.mjs",
+    "test:updater": "node scripts/smoke-updater.mjs",
     "test:preview": "npm run build && node scripts/create-test-fixtures.mjs && node scripts/smoke-preview.mjs",
     "tauri": "tauri",
     "desktop": "tauri dev",
@@ -23,6 +24,8 @@
     "@kenjiuno/msgreader": "^1.28.0",
     "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-dialog": "^2.4.0",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.14.0",
     "@viz-js/viz": "^3.31.0",
     "assimpjs": "^0.0.10",
     "buffer": "^6.0.3",

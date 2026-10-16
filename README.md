@@ -54,6 +54,9 @@ v0.2.2 根据真实按键日志修复“下一个文件需要按两次 Space”�
 
 ## 启动
 
+桌面版支持启动后检查更新，也可在「偏好设置 → 软件更新」手动检查、查看版本说明并下载安装。
+安装前校验签名；发布配置与首次升级说明见 [应用内更新](docs/UPDATING.md)。
+
 ### Windows 桌面版
 
 从 [GitHub Releases](https://github.com/likehao19/SpacePreview/releases/latest) 下载 `windows-x64-setup.exe` 安装包。Mac Intel 和 Apple Silicon 分别选择 `macos-x64.dmg` 和 `macos-arm64.dmg`，将应用拖入「应用程序」。
