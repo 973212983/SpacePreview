@@ -3477,7 +3477,6 @@ button:disabled:hover {
   padding-left: 12px;
 }
 :root[data-platform='macos'] .preview-container {
-  border-radius: 10px 10px 0 0;
   overflow: hidden;
 }
 

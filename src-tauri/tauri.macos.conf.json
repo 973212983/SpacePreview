@@ -18,7 +18,9 @@
         "height": 760,
         "minWidth": 640,
         "minHeight": 480,
-        "decorations": false,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "center": true,
         "visible": false,
         "dragDropEnabled": true

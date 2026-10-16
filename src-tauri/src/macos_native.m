@@ -15,6 +15,14 @@ static atomic_uint_fast64_t shortcutConfig = 49;
 static atomic_uint lastKeyResult = 0;
 uint32_t sp_mac_last_key_result(void) { return atomic_load(&lastKeyResult); }
 
+// Keep AppKit's rounded frame and shadow while using our compact toolbar.
+void sp_mac_configure_window(void *handle) {
+    NSWindow *window = (__bridge NSWindow *)handle;
+    for (NSNumber *button in @[@(NSWindowCloseButton), @(NSWindowMiniaturizeButton), @(NSWindowZoomButton)]) {
+        [window standardWindowButton:button.unsignedIntegerValue].hidden = YES;
+    }
+}
+
 
 void sp_mac_set_shortcut(uint32_t key, uint64_t flags) {
     atomic_store(&shortcutConfig, key | (flags << 16));

@@ -5,6 +5,13 @@ use tauri::{
 };
 
 pub fn install(app: &App) -> tauri::Result<()> {
+    extern "C" {
+        fn sp_mac_configure_window(window: *mut std::ffi::c_void);
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        // setup runs on the main thread, as required by AppKit.
+        unsafe { sp_mac_configure_window(window.ns_window()?) };
+    }
     let settings = MenuItem::with_id(app, "settings", "设置…", true, Some("Cmd+,"))?;
     let open = MenuItem::with_id(app, "open", "打开…", true, Some("Cmd+O"))?;
     let application = SubmenuBuilder::new(app, "瞬览")
