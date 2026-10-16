@@ -108,6 +108,7 @@ try {
       command,
     );
   await settings();
+  await page.getByRole('button', { name: '设置', exact: true }).click();
   const panelColor = () =>
     page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue('--panel').trim(),
@@ -125,6 +126,7 @@ try {
   await page.emulateMedia({ colorScheme: 'light' });
   await expect.poll(panelColor).toBe(light);
   const enabled = page.getByRole('switch', { name: '资源管理器 快捷键预览', exact: true });
+  await page.getByRole('button', { name: '设置', exact: true }).click();
   await enabled.click();
   await expect
     .poll(async () => (await calls('set_agent_enabled')).at(-1)?.args.enabled)

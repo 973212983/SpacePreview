@@ -45,9 +45,10 @@ try {
       };
     }, platform);
     await page.goto(process.env.UI_TEST_URL || 'http://127.0.0.1:1423');
-    const openSettings = async () => {
+    const openSettings = async (category = '设置') => {
       await page.getByTitle('更多选项', { exact: true }).click();
       await page.getByRole('button', { name: '偏好设置', exact: true }).click();
+      await page.getByRole('button', { name: category, exact: true }).click();
     };
     await openSettings();
     await expect(page.locator('.settings-dialog')).toBeVisible();
@@ -80,6 +81,7 @@ try {
       ),
     ).toEqual({ enabled: false });
     const target = platform === 'macos' ? 'macOS' : 'Windows';
+    await page.getByRole('button', { name: '设置', exact: true }).click();
     const record = page.getByRole('button', { name: `修改 ${target} 预览快捷键`, exact: true });
     await record.click();
     await page.keyboard.press('Control+o');
@@ -115,10 +117,11 @@ try {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
+    await page.getByRole('button', { name: '设置', exact: true }).click();
     await page.getByRole('button', { name: '深色', exact: true }).click();
     await page.getByRole('button', { name: '关闭设置', exact: true }).click();
     await page.reload();
-    await openSettings();
+    await openSettings('设置');
     await expect(record).toHaveText('F8');
     await page.getByRole('button', { name: '关闭设置', exact: true }).click();
     const openFile = async (name) => {
@@ -142,7 +145,7 @@ try {
       window.dispatchEvent(new KeyboardEvent('keyup', { key: 'F8', code: '', cancelable: true }));
     });
     await expect(page.locator('.welcome')).toBeVisible();
-    await openSettings();
+    await openSettings('设置');
     await record.click();
     const combination = platform === 'macos' ? 'Meta+p' : 'Control+Alt+p';
     await page.keyboard.press(combination);
@@ -186,7 +189,7 @@ try {
       await page.keyboard.press(combination);
       await expect(page.locator('.welcome')).toBeVisible();
     }
-    await openSettings();
+    await openSettings('设置');
     await page.getByRole('button', { name: `恢复 ${target} 默认快捷键`, exact: true }).click();
     await expect(record).toHaveText('Space');
     await expect

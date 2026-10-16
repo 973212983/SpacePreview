@@ -69,10 +69,10 @@ async function open(mode = 'available', desktop = true) {
       };
     }, mode);
   await page.goto(url);
-  await expect(page.getByRole('button', { name: '认识快捷键' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '关于与更新', exact: true })).toBeVisible();
   return page;
 }
-const settings = (page) => page.getByRole('button', { name: '认识快捷键' }).click();
+const settings = (page) => page.getByRole('button', { name: '关于与更新', exact: true }).click();
 const calls = (page, command) =>
   page.evaluate(
     (command) => window.updateCalls.filter((call) => call.command === command).length,
@@ -121,6 +121,14 @@ try {
   await expect(offline.getByRole('button', { name: '下载并安装' })).toBeVisible();
   await offline.close();
 
+  const notice = await open();
+  await notice.setViewportSize({ width: 640, height: 480 });
+  await notice.clock.fastForward(10_100);
+  await notice.getByRole('button', { name: '查看更新' }).click();
+  await notice.clock.runFor(32);
+  await expect(notice.getByRole('button', { name: '下载并安装' })).toBeInViewport();
+  await notice.close();
+
   const page = await open();
   await page.clock.fastForward(10_100);
   await expect(page.locator('.update-notice')).toContainText('v0.11.0');
@@ -147,7 +155,7 @@ try {
     window.updateEvent({ event: 'Progress', data: { chunkLength: 35 } });
   });
   await expect(page.getByRole('progressbar')).toHaveAttribute('value', '35');
-  await page.getByRole('button', { name: '关闭设置' }).click();
+  await page.getByRole('button', { name: '使用指南', exact: true }).click();
   await settings(page);
   await expect(page.getByRole('progressbar')).toHaveAttribute('value', '35');
   await page.evaluate(() => {
@@ -165,7 +173,9 @@ try {
   await expect(page.getByRole('progressbar')).not.toHaveAttribute('value');
   await expect(page.getByLabel('软件更新')).toContainText('4 KB');
   await page.setViewportSize({ width: 640, height: 480 });
+  await page.getByRole('button', { name: '设置', exact: true }).click();
   await page.getByRole('button', { name: '深色', exact: true }).click();
+  await settings(page);
   await page.getByLabel('软件更新').scrollIntoViewIfNeeded();
   await page.screenshot({ path: 'test-results/updater-small-dark.png' });
   expect(

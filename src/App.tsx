@@ -4,15 +4,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  ChevronDown,
   Eye,
   FileCode2,
-  FileText,
   FolderOpen,
-  Image,
   Info,
   Keyboard,
-  Layers,
   Minus,
   Square,
   Copy,
@@ -20,7 +16,6 @@ import {
   Moon,
   MoreHorizontal,
   Settings2,
-  ShieldCheck,
   Sun,
   Upload,
   X,
@@ -36,7 +31,6 @@ import { PreviewMenuTarget } from './components/PreviewToolbar';
 import { TextAppearanceProvider } from './components/TextAppearance';
 import { desktop, inspectPath, openDefault, pickNativeFiles, siblings } from './lib/bridge';
 import { detectKind, formatSize, fromBrowser, type PreviewFile } from './lib/files';
-import { samples } from './lib/samples';
 import {
   defaultShortcut,
   matchesShortcut,
@@ -87,12 +81,11 @@ function savedSettings(): Settings {
     };
   }
 }
-const sampleDetails = [
-  { label: '一份阅读灵感', category: 'MARKDOWN', icon: FileText, className: 'lilac' },
-  { label: '山间，停留片刻', category: 'IMAGE', icon: Image, className: 'sage' },
-  { label: '让代码清晰可读', category: 'TYPESCRIPT', icon: FileCode2, className: 'blue' },
-  { label: '看看里面有什么', category: 'ARCHIVE', icon: Layers, className: 'sand' },
-];
+const settingsPages = [
+  { id: 'guide', label: '使用指南', icon: Eye },
+  { id: 'settings', label: '设置', icon: Settings2 },
+  { id: 'about', label: '关于与更新', icon: Info },
+] as const;
 
 export default function App() {
   const updater = useAppUpdate();
@@ -104,6 +97,7 @@ export default function App() {
   const macos = agent?.platform === 'macos' || /Mac/i.test(navigator.platform);
   const fileManager = macos ? 'Finder' : '资源管理器';
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsPage, setSettingsPage] = useState<(typeof settingsPages)[number]['id']>('guide');
   const [autostart, setAutostart] = useState<boolean | null>(null);
   const [autostartBusy, setAutostartBusy] = useState(false);
   const [recording, setRecording] = useState<'windowsShortcut' | 'macosShortcut' | null>(null);
@@ -124,7 +118,7 @@ export default function App() {
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[index];
   useEffect(() => {
-    if (!desktop || !settingsOpen) return;
+    if (!desktop || (file && !settingsOpen)) return;
     let cancelled = false;
     setAutostartBusy(true);
     void invoke<boolean>('autostart_enabled')
@@ -143,7 +137,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [settingsOpen]);
+  }, [settingsOpen, file?.id]);
   const toggleAutostart = async () => {
     if (autostart === null || autostartBusy) return;
     setAutostartBusy(true);
@@ -457,7 +451,7 @@ export default function App() {
         event.preventDefault();
         void choose();
       }
-      if (settingsOpen) return;
+      if (settingsOpen || !file) return;
       if (
         matchesShortcut(event, shortcut) &&
         !(
@@ -560,7 +554,7 @@ export default function App() {
                   setArchiveStack([]);
                 }}
               >
-                <img className="brand-icon" src="/app-icon.svg" alt="瞬览" />
+                <img className="brand-icon" src="/app-icon.png" alt="瞬览" />
               </button>
               {archiveStack.length > 0 && (
                 <button
@@ -599,12 +593,11 @@ export default function App() {
           ) : (
             <>
               <div className="app-mark mini">
-                <img className="brand-icon" src="/app-icon.svg" alt="瞬览" />
+                <img className="brand-icon" src="/app-icon.png" alt="瞬览" />
               </div>
               <strong className="brand">
                 瞬览 <span>SpacePreview</span>
               </strong>
-              <span className="version-badge">PREVIEW</span>
             </>
           )}
         </div>
@@ -765,335 +758,321 @@ export default function App() {
             </div>
           ))}
         </main>
-      ) : (
-        <main className="welcome">
-          <div className="welcome-topline">
-            <span>
-              <span className="status-dot" /> 为每一次好奇，准备就绪
-            </span>
-            <span className="platform-chip">
-              <Monitor size={13} />
-              {desktop
-                ? agent?.running && agent.enabled
-                  ? `${previewKey} 预览已就绪`
-                  : macos && agent?.enabled
-                    ? 'Finder 预览待授权'
-                    : '桌面预览'
-                : '浏览器体验版'}
-            </span>
-          </div>
-          <section className="hero">
-            <div className="hero-copy">
-              <div className="eyebrow">LESS OPENING. MORE SEEING.</div>
-              <h1>
-                不必打开，
-                <br />
-                看一眼<span className="heading-dot">就好。</span>
-              </h1>
-              <p>
-                图片、文档、代码，还有那些不认识的文件。
-                <br />
-                轻按 {previewKey}，让内容即刻呈现。
-              </p>
-              <div className="hero-actions">
-                <button className="primary-button" onClick={() => void choose()}>
-                  <FolderOpen size={17} />
-                  选择文件 <span>{macos ? '⌘ O' : 'Ctrl O'}</span>
-                </button>
-                <span className="drop-hint">或拖拽文件到这里</span>
-              </div>
-              <div className="privacy-line">
-                <ShieldCheck size={13} /> 文件留在本地，安心看一眼。
-              </div>
-            </div>
-            <div className="space-illustration" aria-hidden="true">
-              <div className="orbit orbit-one" />
-              <div className="orbit orbit-two" />
-              <div className="floating-file file-back">
-                <FileCode2 size={28} />
-                <span>TS</span>
-              </div>
-              <div className="floating-file file-front">
-                <Image size={28} />
-                <span>IMG</span>
-              </div>
-              <div className="space-key">
-                <span>{previewKey}</span>
-                <span className="space-symbol">⎵</span>
-              </div>
-              <div className="key-caption">一键，直达内容</div>
-              <div className="spark spark-one">+</div>
-              <div className="spark spark-two">+</div>
-            </div>
-          </section>
-          <section className="samples-section">
-            <div className="section-heading">
-              <h2>先看一眼</h2>
-              <span>
-                用几个小文件，认识瞬览 <ChevronDown size={13} />
-              </span>
-            </div>
-            <div className="sample-grid">
-              {sampleDetails.map((sample, i) => (
-                <button
-                  key={sample.category}
-                  className="sample-card"
-                  onClick={() => {
-                    loadFiles(samples);
-                    setIndex(i);
-                  }}
-                >
-                  <div className={`sample-art ${sample.className}`}>
-                    <sample.icon size={29} strokeWidth={1.5} />
-                    <span>{sample.category}</span>
-                    <div className="sample-peek">
-                      <Eye size={15} />
-                    </div>
-                  </div>
-                  <div className="sample-label">
-                    <strong>{sample.label}</strong>
-                    <span>{samples[i].name}</span>
-                    <ArrowRight size={16} />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-          <div className="welcome-bottom">
-            <div>
-              <Keyboard size={16} />
-              <span>少一步打开，多一点专注。</span>
-            </div>
-            <button onClick={() => setSettingsOpen(true)}>
-              认识快捷键 <ArrowRight size={14} />
-            </button>
-          </div>
-        </main>
-      )}
-      {!file && (
-        <footer className="home-footer">
-          <span>
-            <span className="status-dot muted" /> 文件预览在本地完成
-          </span>
-          <span>
-            SPACEPREVIEW <b>·</b> v{version}
-          </span>
-          <span>为「只想看一眼」而设计</span>
-        </footer>
-      )}
-
-      {settingsOpen && (
-        <div className="modal-overlay" onClick={() => setSettingsOpen(false)}>
+      ) : null}
+      {(settingsOpen || !file) && (
+        <div className="settings-workspace">
           <section
-            className="settings-dialog"
-            role="dialog"
-            aria-modal="true"
+            className={'settings-dialog' + (!file ? ' welcome' : '')}
+            role={file ? 'dialog' : 'region'}
+            aria-modal={file ? true : undefined}
             aria-labelledby="settings-title"
-            onClick={(e) => e.stopPropagation()}
           >
-            <div className="dialog-header">
-              <div>
-                <span className="eyebrow">MAKE IT YOURS</span>
-                <h2 id="settings-title">偏好设置</h2>
+            <aside className="settings-sidebar">
+              <div className="settings-brand">
+                <img src="/app-icon.png" alt="" width="56" height="56" />
+                <strong>瞬览</strong>
+                <span>SpacePreview</span>
               </div>
-              <button
-                autoFocus
-                className="icon-button"
-                title="关闭设置"
-                onClick={() => setSettingsOpen(false)}
-              >
-                <X size={19} />
-              </button>
-            </div>
-            <UpdateSettings updater={updater} />
-            <h3>外观</h3>
-            <div className="theme-options">
-              {(['system', 'light', 'dark'] as const).map((theme, i) => (
-                <button
-                  key={theme}
-                  className={settings.theme === theme ? 'selected' : ''}
-                  onClick={() => setSettings((s) => ({ ...s, theme }))}
-                >
-                  {[<Monitor size={18} />, <Sun size={18} />, <Moon size={18} />][i]}
-                  {['跟随系统', '浅色', '深色'][i]}
-                </button>
-              ))}
-            </div>
-            <div className="settings-toggles">
-              <div className="setting-row">
-                <div>
-                  <strong>失去焦点时关闭</strong>
-                  <p>{desktop ? '切换到其他应用时隐藏预览窗口' : '仅在桌面版中生效'}</p>
-                </div>
-                <button
-                  role="switch"
-                  aria-checked={settings.closeOnBlur}
-                  aria-label="失去焦点时关闭"
-                  disabled={!desktop}
-                  className={`switch ${settings.closeOnBlur ? 'on' : ''}`}
-                  onClick={() => setSettings((s) => ({ ...s, closeOnBlur: !s.closeOnBlur }))}
-                >
-                  <span />
-                </button>
-              </div>
-              <div className="setting-row">
-                <div>
-                  <strong>开机自启动</strong>
-                  <p>
-                    {!desktop
-                      ? '仅在桌面版中生效'
-                      : autostartBusy
-                        ? '正在同步系统启动设置…'
-                        : autostart === null
-                          ? '无法读取状态，请重新打开设置'
-                          : `登录后在${macos ? '菜单栏' : '托盘'}运行，不弹出预览窗口`}
-                  </p>
-                </div>
-                <button
-                  role="switch"
-                  aria-label="开机自启动"
-                  aria-checked={autostart === true}
-                  disabled={!desktop || autostart === null || autostartBusy}
-                  className={`switch ${autostart ? 'on' : ''}`}
-                  onClick={() => void toggleAutostart()}
-                >
-                  <span />
-                </button>
-              </div>
-            </div>
-            {desktop && agent?.supported && (
-              <div className="setting-row">
-                <div>
-                  <strong>{fileManager} 快捷键预览</strong>
-                  <p>
-                    {!settings.spaceEnabled
-                      ? '快捷键预览已关闭，可选择文件或拖入预览'
-                      : agent.running
-                        ? `原生监听已运行 · 支持 ${fileManager} 与桌面`
-                        : macos
-                          ? !agent.accessibility
-                            ? '请授权辅助功能，才能接收 Finder 的预览快捷键'
-                            : !agent.automation
-                              ? '请允许瞬览读取 Finder 中选中的文件'
-                              : '键盘监听未就绪，请检查权限后重启瞬览'
-                          : '原生监听未启动，请重新启动瞬览'}
-                  </p>
-                </div>
-                <button
-                  role="switch"
-                  aria-checked={settings.spaceEnabled}
-                  aria-label={`${fileManager} 快捷键预览`}
-                  className={`switch ${settings.spaceEnabled ? 'on' : ''}`}
-                  onClick={() => setSettings((s) => ({ ...s, spaceEnabled: !s.spaceEnabled }))}
-                >
-                  <span />
-                </button>
-              </div>
-            )}
-            {desktop && macos && settings.spaceEnabled && agent?.supported && !agent.running && (
-              <div className="mac-permissions">
-                <p>
-                  系统设置 → 隐私与安全性：在「辅助功能」中启用瞬览， 并在「自动化」中允许控制
-                  Finder。 若键盘监听仍未就绪，检查「输入监控」或重启应用。
-                  未授权时仍可选择文件或拖入预览，Finder 原有空格预览保持可用。
-                </p>
-                <button
-                  onClick={() => {
-                    void invoke('request_agent_permissions')
-                      .then(() => setToast('请在 macOS 系统权限提示中完成授权，状态会自动更新。'))
-                      .catch((error) => setToast(`权限请求失败：${String(error)}`));
-                  }}
-                >
-                  授权 Finder 预览
-                </button>
-              </div>
-            )}
-            <h3>预览快捷键</h3>
-            <div className="shortcut-editors">
-              {(['windowsShortcut', 'macosShortcut'] as const).map((platform) => (
-                <div className="shortcut-editor" key={platform}>
-                  <span>{platform === 'windowsShortcut' ? 'Windows' : 'macOS'}</span>
+              <nav aria-label="设置分类">
+                {settingsPages.map((page) => (
                   <button
-                    className={`shortcut-record ${recording === platform ? 'recording' : ''}`}
-                    aria-label={`修改 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 预览快捷键`}
+                    key={page.id}
+                    aria-current={settingsPage === page.id ? 'page' : undefined}
                     onClick={() => {
-                      spaceAction.current = null;
-                      setRecording(platform);
-                      setShortcutError('');
-                    }}
-                    onBlur={() =>
-                      setRecording((current) => (current === platform ? null : current))
-                    }
-                  >
-                    <Keyboard size={15} />
-                    {recording === platform
-                      ? '请按快捷键…'
-                      : shortcutLabel(settings[platform], platform === 'macosShortcut')}
-                  </button>
-                  <button
-                    className="shortcut-reset"
-                    aria-label={`恢复 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 默认快捷键`}
-                    onClick={() => {
+                      setSettingsPage(page.id);
                       setRecording(null);
                       setShortcutError('');
-                      setSettings((s) => ({ ...s, [platform]: defaultShortcut }));
                     }}
                   >
-                    重置
+                    <page.icon size={18} strokeWidth={1.6} />
+                    <span>{page.label}</span>
                   </button>
-                </div>
-              ))}
-            </div>
-            <p
-              className={`shortcut-help ${shortcutError ? 'shortcut-error' : ''}`}
-              role={shortcutError ? 'alert' : undefined}
-            >
-              {shortcutError ||
-                '点击按键后录入，自动保存；Esc 取消。Shift + 预览快捷键用于纯文本模式。请避开系统已占用的组合。'}
-            </p>
-            <h3>常用操作</h3>
-            <div className="shortcuts">
-              {[
-                ['选择文件', 'Ctrl / ⌘ + O'],
-                ['关闭预览', `${previewKey} / Esc`],
-                ['切换文件', '←  →'],
-                ['纯文本预览', `Shift + ${previewKey}`],
-                ['复制路径', 'Ctrl / ⌘ + Shift + C'],
-                ['默认应用打开', 'Enter'],
-                ['增大 / 减小文字', 'Ctrl / ⌘ + + / −'],
-                ['滚轮调整文字', 'Ctrl / ⌘ + 滚轮上 / 下'],
-              ].map(([label, key]) => (
-                <div key={label}>
-                  <span>{label}</span>
-                  <kbd>{key}</kbd>
-                </div>
-              ))}
-            </div>
-            <p className="shortcut-help">
-              文字默认 16px（10–40px），每次调整 2px；更多菜单可选择字体和字号。Word/RTF 页面、PDF
-              保留原字体，快捷键缩放页面。输入框及媒体控件保留自身按键；Esc 先关闭菜单或设置。
-            </p>
-            <div className="settings-note">
-              <Info size={16} />
-              <p>
-                {desktop
-                  ? agent?.supported
-                    ? `${settings.spaceEnabled && agent.running ? `在 ${fileManager} 或桌面选中文件，按 ${previewKey} 即可预览。` : settings.spaceEnabled ? '系统快捷键尚未就绪，可先选择或拖入文件预览。' : '文件管理器快捷键预览已关闭，可选择或拖入文件预览。'}${macos ? '首次使用需要系统授权。关闭窗口后仍在菜单栏运行。' : '关闭窗口后仍在托盘运行。'}`
-                    : '当前系统支持文件选择与拖入，暂未接入文件管理器空格预览。'
-                  : '这里可以预览真实文件。资源管理器唤起、默认应用打开和同目录导航，需要桌面版。'}
-              </p>
+                ))}
+              </nav>
+              <span className="settings-version">v{version}</span>
+            </aside>
+            <div className="settings-main">
+              <div className="dialog-header">
+                <h2 id="settings-title">
+                  {settingsPages.find((page) => page.id === settingsPage)?.label}
+                </h2>
+                {settingsOpen && (
+                  <button
+                    autoFocus
+                    className="icon-button"
+                    title="关闭设置"
+                    onClick={() => setSettingsOpen(false)}
+                  >
+                    <X size={19} />
+                  </button>
+                )}
+              </div>
+              <div className="settings-content" key={settingsPage}>
+                <section
+                  hidden={settingsPage !== 'guide'}
+                  className="settings-page guide-page"
+                  aria-label="使用指南"
+                >
+                  <p className="page-intro">在文件管理器中预览文件，无需打开关联应用。</p>
+                  <div className="guide-step">
+                    <span className="step-number">1</span>
+                    <div>
+                      <h3>选中文件</h3>
+                      <p>在 {fileManager} 或桌面中，单击选中需要查看的文件。</p>
+                    </div>
+                    <FolderOpen size={22} />
+                  </div>
+                  <div className="guide-step">
+                    <span className="step-number">2</span>
+                    <div>
+                      <h3>按下预览快捷键</h3>
+                      <p>查看文件内容；按左右方向键切换同目录文件。</p>
+                    </div>
+                    <kbd>{previewKey}</kbd>
+                  </div>
+                  <div className="guide-step">
+                    <span className="step-number">3</span>
+                    <div>
+                      <h3>关闭预览</h3>
+                      <p>再次按 {previewKey} 或 Esc，返回文件管理器。</p>
+                    </div>
+                    <kbd>Esc</kbd>
+                  </div>
+                  <div className="guide-tip">
+                    <Keyboard size={18} />
+                    <p>
+                      按 Shift + {previewKey} 可使用纯文本模式。你可以在「设置」中更改预览按键。
+                    </p>
+                  </div>
+                  <div className="settings-note">
+                    <Info size={16} />
+                    <p>
+                      {desktop
+                        ? agent?.supported
+                          ? `${settings.spaceEnabled && agent.running ? `在 ${fileManager} 或桌面选中文件，按 ${previewKey} 即可预览。` : settings.spaceEnabled ? '系统快捷键尚未就绪，可先选择或拖入文件预览。' : '文件管理器快捷键预览已关闭，可选择或拖入文件预览。'}${macos ? '首次使用需要系统授权。关闭窗口后仍在菜单栏运行。' : '关闭窗口后仍在托盘运行。'}`
+                          : '当前系统支持文件选择与拖入，暂未接入文件管理器空格预览。'
+                        : '浏览器中仅展示使用说明与设置界面。文件管理器快捷键预览需要桌面版。'}
+                    </p>
+                  </div>
+                </section>
+                <section
+                  hidden={settingsPage !== 'settings'}
+                  className="settings-page"
+                  aria-label="应用设置"
+                >
+                  <h3>应用主题</h3>
+                  <div className="theme-options">
+                    {(['system', 'light', 'dark'] as const).map((theme, i) => (
+                      <button
+                        key={theme}
+                        className={settings.theme === theme ? 'selected' : ''}
+                        onClick={() => setSettings((s) => ({ ...s, theme }))}
+                      >
+                        {[<Monitor size={18} />, <Sun size={18} />, <Moon size={18} />][i]}
+                        {['跟随系统', '浅色', '深色'][i]}
+                      </button>
+                    ))}
+                  </div>
+                  <h3>窗口与启动</h3>
+                  <div className="settings-toggles">
+                    <div className="setting-row">
+                      <Eye className="setting-icon" size={22} strokeWidth={1.5} />
+                      <div>
+                        <strong>失去焦点时关闭</strong>
+                        <p>{desktop ? '切换到其他应用时隐藏预览窗口' : '仅在桌面版中生效'}</p>
+                      </div>
+                      <button
+                        role="switch"
+                        aria-checked={settings.closeOnBlur}
+                        aria-label="失去焦点时关闭"
+                        disabled={!desktop}
+                        className={`switch ${settings.closeOnBlur ? 'on' : ''}`}
+                        onClick={() => setSettings((s) => ({ ...s, closeOnBlur: !s.closeOnBlur }))}
+                      >
+                        <span />
+                      </button>
+                    </div>
+                    <div className="setting-row">
+                      <Monitor className="setting-icon" size={22} strokeWidth={1.5} />
+                      <div>
+                        <strong>开机自启动</strong>
+                        <p>
+                          {!desktop
+                            ? '仅在桌面版中生效'
+                            : autostartBusy
+                              ? '正在同步系统启动设置…'
+                              : autostart === null
+                                ? '无法读取状态，请重新打开设置'
+                                : `登录后在${macos ? '菜单栏' : '托盘'}运行，不弹出预览窗口`}
+                        </p>
+                      </div>
+                      <button
+                        role="switch"
+                        aria-label="开机自启动"
+                        aria-checked={autostart === true}
+                        disabled={!desktop || autostart === null || autostartBusy}
+                        className={`switch ${autostart ? 'on' : ''}`}
+                        onClick={() => void toggleAutostart()}
+                      >
+                        <span />
+                      </button>
+                    </div>
+                  </div>
+                  {desktop && agent?.supported && (
+                    <div className="setting-row">
+                      <Keyboard className="setting-icon" size={22} strokeWidth={1.5} />
+                      <div>
+                        <strong>{fileManager} 快捷键预览</strong>
+                        <p>
+                          {!settings.spaceEnabled
+                            ? '快捷键预览已关闭，可选择文件或拖入预览'
+                            : agent.running
+                              ? `快捷键已启用 · 支持 ${fileManager} 与桌面`
+                              : macos
+                                ? !agent.accessibility
+                                  ? '请授权辅助功能，才能接收 Finder 的预览快捷键'
+                                  : !agent.automation
+                                    ? '请允许瞬览读取 Finder 中选中的文件'
+                                    : '键盘监听未就绪，请检查权限后重启瞬览'
+                                : '原生监听未启动，请重新启动瞬览'}
+                        </p>
+                      </div>
+                      <button
+                        role="switch"
+                        aria-checked={settings.spaceEnabled}
+                        aria-label={`${fileManager} 快捷键预览`}
+                        className={`switch ${settings.spaceEnabled ? 'on' : ''}`}
+                        onClick={() =>
+                          setSettings((s) => ({ ...s, spaceEnabled: !s.spaceEnabled }))
+                        }
+                      >
+                        <span />
+                      </button>
+                    </div>
+                  )}
+                  {desktop &&
+                    macos &&
+                    settings.spaceEnabled &&
+                    agent?.supported &&
+                    !agent.running && (
+                      <div className="mac-permissions">
+                        <p>
+                          系统设置 → 隐私与安全性：在「辅助功能」中启用瞬览，
+                          并在「自动化」中允许控制 Finder。
+                          若键盘监听仍未就绪，检查「输入监控」或重启应用。
+                          未授权时仍可选择文件或拖入预览，Finder 原有空格预览保持可用。
+                        </p>
+                        <button
+                          onClick={() => {
+                            void invoke('request_agent_permissions')
+                              .then(() =>
+                                setToast('请在 macOS 系统权限提示中完成授权，状态会自动更新。'),
+                              )
+                              .catch((error) => setToast(`权限请求失败：${String(error)}`));
+                          }}
+                        >
+                          授权 Finder 预览
+                        </button>
+                      </div>
+                    )}
+                  <h3>预览快捷键</h3>
+                  <div className="shortcut-editors">
+                    {(['windowsShortcut', 'macosShortcut'] as const).map((platform) => (
+                      <div className="shortcut-editor" key={platform}>
+                        <span>{platform === 'windowsShortcut' ? 'Windows' : 'macOS'}</span>
+                        <button
+                          className={`shortcut-record ${recording === platform ? 'recording' : ''}`}
+                          aria-label={`修改 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 预览快捷键`}
+                          onClick={() => {
+                            spaceAction.current = null;
+                            setRecording(platform);
+                            setShortcutError('');
+                          }}
+                          onBlur={() =>
+                            setRecording((current) => (current === platform ? null : current))
+                          }
+                        >
+                          <Keyboard size={15} />
+                          {recording === platform
+                            ? '请按快捷键…'
+                            : shortcutLabel(settings[platform], platform === 'macosShortcut')}
+                        </button>
+                        <button
+                          className="shortcut-reset"
+                          aria-label={`恢复 ${platform === 'windowsShortcut' ? 'Windows' : 'macOS'} 默认快捷键`}
+                          onClick={() => {
+                            setRecording(null);
+                            setShortcutError('');
+                            setSettings((s) => ({ ...s, [platform]: defaultShortcut }));
+                          }}
+                        >
+                          重置
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p
+                    className={`shortcut-help ${shortcutError ? 'shortcut-error' : ''}`}
+                    role={shortcutError ? 'alert' : undefined}
+                  >
+                    {shortcutError ||
+                      '点击按键后录入，自动保存；Esc 取消。Shift + 预览快捷键用于纯文本模式。请避开系统已占用的组合。'}
+                  </p>
+                  <h3>常用操作</h3>
+                  <div className="shortcuts">
+                    {[
+                      ['选择文件', 'Ctrl / ⌘ + O'],
+                      ['关闭预览', `${previewKey} / Esc`],
+                      ['切换文件', '←  →'],
+                      ['纯文本预览', `Shift + ${previewKey}`],
+                      ['复制路径', 'Ctrl / ⌘ + Shift + C'],
+                      ['默认应用打开', 'Enter'],
+                      ['增大 / 减小文字', 'Ctrl / ⌘ + + / −'],
+                      ['滚轮调整文字', 'Ctrl / ⌘ + 滚轮上 / 下'],
+                    ].map(([label, key]) => (
+                      <div key={label}>
+                        <span>{label}</span>
+                        <kbd>{key}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="shortcut-help">
+                    文字默认 16px（10–40px），每次调整 2px；更多菜单可选择字体和字号。Word/RTF
+                    页面、PDF 保留原字体，快捷键缩放页面。输入框及媒体控件保留自身按键；Esc
+                    先关闭菜单或设置。
+                  </p>
+                </section>
+                <section
+                  hidden={settingsPage !== 'about'}
+                  className="settings-page"
+                  aria-label="关于与更新"
+                >
+                  <div className="about-app">
+                    <img src="/app-icon.png" alt="瞬览图标" width="64" height="64" />
+                    <div>
+                      <h3>瞬览 SpacePreview</h3>
+                      <p>版本 {version} · 本地文件预览</p>
+                    </div>
+                  </div>
+                  <UpdateSettings updater={updater} />
+                </section>
+              </div>
             </div>
           </section>
         </div>
       )}
-      {updater.notice && !settingsOpen && (
+      {updater.notice && !settingsOpen && (file || settingsPage !== 'about') && (
         <div className="update-notice" role="status">
           <span>瞬览 v{updater.state.version} 已可更新</span>
           <button
             className="update-button"
             onClick={() => {
               setSettingsOpen(true);
+              setSettingsPage('about');
               updater.dismiss();
+              requestAnimationFrame(() => {
+                document.querySelector('.update-settings')?.scrollIntoView({ block: 'center' });
+              });
             }}
           >
             查看更新
@@ -1106,7 +1085,7 @@ export default function App() {
       {dragging && (
         <div className="drop-overlay">
           <Upload size={42} />
-          <h2>松开，即刻预览</h2>
+          <h2>释放文件以预览</h2>
           <p>支持一次拖入多个文件</p>
         </div>
       )}
