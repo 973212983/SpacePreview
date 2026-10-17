@@ -1,3 +1,4 @@
+import { usePreviewPreferences } from './PreviewPreferences';
 import PreviewToolbar, { PreviewMenu } from './PreviewToolbar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -105,7 +106,7 @@ export default function Preview({
   const [detected, setDetected] = useState<PreviewKind | null>(null);
   const [wordText, setWordText] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [htmlSource, setHtmlSource] = useState(true);
+  const { preferences } = usePreviewPreferences();
   useEffect(() => {
     if (file.directory || mode !== 'auto' || (registered !== 'binary' && !ambiguous)) return;
     let active = true;
@@ -157,23 +158,10 @@ export default function Preview({
       />
     );
   if (kind === 'html')
-    return (
-      <>
-        <PreviewMenu>
-          <label className="preview-menu-option">
-            <span>HTML 视图</span>
-            <select
-              aria-label="HTML 视图"
-              value={htmlSource ? 'source' : 'web'}
-              onChange={(event) => setHtmlSource(event.target.value === 'source')}
-            >
-              <option value="source">源码</option>
-              <option value="web">网页预览</option>
-            </select>
-          </label>
-        </PreviewMenu>
-        {htmlSource ? <ParsedPreview file={file} kind="text" /> : <HtmlPreview file={file} />}
-      </>
+    return preferences.html === 'source' ? (
+      <ParsedPreview file={file} kind="text" />
+    ) : (
+      <HtmlPreview file={file} />
     );
   if (kind === 'dxf') return <CadPreview file={file} />;
   if (kind === 'model') return <ModelPreview file={file} />;
@@ -206,7 +194,7 @@ export default function Preview({
   if (kind === 'video' || kind === 'audio')
     return <MediaPreview file={file} audio={kind === 'audio'} />;
   if (kind === 'binary') return <BinaryPreview file={file} />;
-  if (kind === 'archive') return <ArchivePreview file={file} onOpen={onOpen} />;
+  if (kind === 'archive') return <ArchivePreview key={file.id} file={file} />;
   return (
     <ParsedPreview
       file={file}
@@ -947,8 +935,10 @@ function ParsedPreview({
   const plainText =
     sourceLanguage(file.name) === 'plaintext' &&
     ['txt', 'text', 'dat', 'license', 'readme'].includes(extension(file.name));
-  const [wrap, setWrap] = useState(plainText);
-  const [encoding, setEncoding] = useState<TextEncoding>('auto');
+  const { preferences } = usePreviewPreferences();
+  const wrap = preferences.wrap;
+  const [encodingOverride, setEncoding] = useState<TextEncoding | null>(null);
+  const encoding = encodingOverride ?? preferences.encoding;
   const continuousCode = useRef<HTMLElement>(null);
   useEffect(() => {
     const code = continuousCode.current;
@@ -1124,7 +1114,7 @@ function ParsedPreview({
   const encodingControl = (
     <PreviewMenu>
       <label className="preview-menu-option">
-        <span>编码</span>
+        <span>当前文件编码</span>
         <select
           aria-label="文本编码"
           value={encoding}
@@ -1222,13 +1212,6 @@ function ParsedPreview({
             />
             {query && <small>{matching.size}</small>}
           </label>
-          <button
-            className={wrap ? 'active' : ''}
-            title="自动换行"
-            onClick={() => setWrap((w) => !w)}
-          >
-            <Maximize2 size={14} />
-          </button>
         </div>
       </PreviewToolbar>
       <div className={`code-scroll ${wrap ? 'wrap' : ''}`}>

@@ -28,6 +28,7 @@ import Preview from './components/Preview';
 import { usePreviewWindow } from './lib/use-preview-window';
 import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
+import PreviewPreferencesSettings from './components/PreviewPreferences';
 import { useAppUpdate } from './lib/use-app-update';
 import { version } from '../package.json';
 import { PreviewMenuTarget } from './components/PreviewToolbar';
@@ -86,8 +87,10 @@ function savedSettings(): Settings {
   }
 }
 const settingsPages = [
+  { id: 'settings', label: '通用', icon: Settings2 },
+  { id: 'preview', label: '预览', icon: FileCode2 },
+  { id: 'shortcuts', label: '快捷键', icon: Keyboard },
   { id: 'guide', label: '使用指南', icon: Eye },
-  { id: 'settings', label: '设置', icon: Settings2 },
   { id: 'about', label: '关于与更新', icon: Info },
 ] as const;
 
@@ -602,7 +605,7 @@ export default function App() {
           </div>
         )}
         <div className="title-left">
-          {file ? (
+          {file && !settingsOpen ? (
             <>
               <button
                 className={`app-mark mini${macos ? ' mac-home-mark' : ''}`}
@@ -650,12 +653,12 @@ export default function App() {
           )}
         </div>
         <div className="title-right">
-          {macos && file && (
+          {macos && file && !settingsOpen && (
             <button className="mac-open-default" onClick={() => void openFile()}>
               在默认应用中打开
             </button>
           )}
-          {file && (
+          {file && !settingsOpen && (
             <>
               <div className="menu-container">
                 <button
@@ -727,7 +730,7 @@ export default function App() {
               </div>
             </>
           )}
-          {!file && (
+          {!file && !settingsOpen && (
             <div className="menu-container">
               <button
                 className="icon-button"
@@ -884,6 +887,12 @@ export default function App() {
             aria-labelledby="settings-title"
           >
             <aside className="settings-sidebar">
+              {settingsOpen && (
+                <button autoFocus className="settings-back" onClick={() => setSettingsOpen(false)}>
+                  <ArrowLeft size={16} />
+                  {file ? '返回预览' : '返回首页'}
+                </button>
+              )}
               <div className="settings-brand">
                 <img src="/app-icon.png" alt="" width="56" height="56" />
                 <strong>瞬览</strong>
@@ -912,16 +921,6 @@ export default function App() {
                 <h2 id="settings-title">
                   {settingsPages.find((page) => page.id === settingsPage)?.label}
                 </h2>
-                {settingsOpen && (
-                  <button
-                    autoFocus
-                    className="icon-button"
-                    title="关闭设置"
-                    onClick={() => setSettingsOpen(false)}
-                  >
-                    <X size={19} />
-                  </button>
-                )}
               </div>
               <div className="settings-content" key={settingsPage}>
                 <section
@@ -1107,6 +1106,19 @@ export default function App() {
                       }
                     </p>
                   )}
+                </section>
+                <section
+                  hidden={settingsPage !== 'preview'}
+                  className="settings-page"
+                  aria-label="预览设置"
+                >
+                  <PreviewPreferencesSettings />
+                </section>
+                <section
+                  hidden={settingsPage !== 'shortcuts'}
+                  className="settings-page"
+                  aria-label="快捷键设置"
+                >
                   <h3>预览快捷键</h3>
                   <div className="shortcut-editors">
                     {(['windowsShortcut', 'macosShortcut'] as const)
@@ -1170,8 +1182,7 @@ export default function App() {
                     ))}
                   </div>
                   <p className="shortcut-help">
-                    文字默认 16px（10–40px），每次调整 2px；更多菜单可选择字体和字号。Word/RTF
-                    页面、PDF
+                    文字每次调整 2px；字体和字号可在「预览」设置中统一调整。Word/RTF 页面、PDF
                     保留原字体，快捷键缩放页面。输入框保留自身按键；播放视频后仍可用预览快捷键关闭；Esc
                     先关闭菜单或设置。
                   </p>

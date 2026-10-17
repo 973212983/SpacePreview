@@ -3521,3 +3521,121 @@ button:disabled:hover {
   box-shadow: none;
   margin-bottom: 8px;
 }
+
+/* Preferences use the same navigation as the app, without a second window close control. */
+.settings-dialog .settings-sidebar {
+  width: 180px;
+  padding: 16px 12px;
+  background: var(--subtle);
+  border-right: 1px solid var(--line);
+}
+.settings-dialog .settings-brand {
+  display: none;
+}
+.settings-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 18px;
+  color: var(--muted);
+  text-align: left;
+}
+.settings-back:hover {
+  background: var(--line);
+  border-radius: 6px;
+  color: var(--text);
+}
+.settings-dialog .settings-main {
+  padding: 24px 28px 0;
+  background: var(--bg);
+}
+.settings-dialog .dialog-header {
+  padding-bottom: 22px;
+}
+.settings-dialog .dialog-header h2 {
+  font-size: 21px;
+  font-weight: 600;
+}
+.settings-dialog .settings-content {
+  padding-right: 4px;
+}
+.settings-dialog .settings-page {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.settings-dialog .setting-row {
+  min-height: 60px;
+  padding: 12px 16px;
+  gap: 12px;
+  margin-bottom: 0;
+  border-radius: 0;
+  border-width: 0 0 1px;
+}
+.settings-dialog .settings-toggles,
+.preference-group {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.settings-dialog .setting-row:last-child {
+  border-bottom: 0;
+}
+.settings-dialog .setting-row .setting-icon {
+  display: none;
+}
+.settings-dialog .switch::before {
+  display: none;
+}
+.settings-dialog .switch {
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+.settings-dialog .theme-options > button {
+  min-height: 40px;
+  padding: 8px 12px;
+}
+.preference-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 54px;
+  padding: 10px 16px;
+}
+.preference-row + .preference-row {
+  border-top: 1px solid var(--line);
+}
+.preference-row select {
+  width: 210px;
+  max-width: 65%;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font: inherit;
+}
+.archive-tree-search {
+  margin: 8px;
+  min-width: 0;
+}
+.archive-tree-search input {
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 650px) {
+  .settings-dialog .settings-sidebar {
+    width: 144px;
+    padding: 12px 8px;
+  }
+  .settings-dialog .settings-main {
+    padding: 20px 14px 0;
+  }
+  .settings-dialog .settings-sidebar nav button {
+    gap: 8px;
+    padding: 9px 8px;
+  }
+}

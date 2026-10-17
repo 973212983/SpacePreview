@@ -8,7 +8,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { PreviewMenu } from './PreviewToolbar';
+import { usePreviewPreferences } from './PreviewPreferences';
 import { fontKeyDirection, resizeText } from '../lib/preview-gestures';
 
 const families = {
@@ -33,8 +33,21 @@ export function TextAppearanceProvider({
   active: boolean;
   children: ReactNode;
 }) {
-  const [size, setSize] = useState(16);
-  const [font, setFont] = useState<Font>('auto');
+  const { preferences, setPreferences } = usePreviewPreferences();
+  const { size, font } = preferences;
+  const setSize = useCallback(
+    (value: number | ((size: number) => number)) => {
+      setPreferences((current) => ({
+        ...current,
+        size: typeof value === 'function' ? value(current.size) : value,
+      }));
+    },
+    [setPreferences],
+  );
+  const setFont = useCallback(
+    (font: Font) => setPreferences((current) => ({ ...current, font })),
+    [setPreferences],
+  );
   return (
     <Appearance.Provider value={{ active, size, font, setSize, setFont }}>
       <div
@@ -125,7 +138,7 @@ export function PreviewAdjustmentIndicator({
 }
 
 export function TextAppearanceControls() {
-  const { size, font, setSize, setFont } = useTextAppearance();
+  const { size, setSize } = useTextAppearance();
   const adjust = useCallback(
     (direction: number) => setSize((current) => resizeText(current, direction)),
     [setSize],
@@ -134,35 +147,6 @@ export function TextAppearanceControls() {
   return (
     <>
       <PreviewAdjustmentIndicator visible={adjusting} label="字号" value={`${size} px`} />
-      <PreviewMenu>
-        <label className="preview-menu-option">
-          <span>字体</span>
-          <select
-            aria-label="阅读字体"
-            value={font}
-            onChange={(event) => setFont(event.target.value as Font)}
-          >
-            <option value="auto">默认字体</option>
-            <option value="sans">现代字体</option>
-            <option value="serif">书籍字体</option>
-            <option value="mono">等宽字体</option>
-          </select>
-        </label>
-        <label className="preview-menu-option">
-          <span>字号</span>
-          <select
-            aria-label="阅读字号"
-            value={size}
-            onChange={(event) => setSize(Number(event.target.value))}
-          >
-            {Array.from({ length: 16 }, (_, index) => 10 + index * 2).map((value) => (
-              <option key={value} value={value}>
-                {value} px
-              </option>
-            ))}
-          </select>
-        </label>
-      </PreviewMenu>
     </>
   );
 }
