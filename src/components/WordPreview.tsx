@@ -21,6 +21,19 @@ export default function WordPreview({
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
+  const resourceController = useRef(new AbortController());
+  useEffect(() => {
+    const controller = new AbortController();
+    resourceController.current = controller;
+    return () => controller.abort();
+  }, [file]);
+  const [part, setPart] = useState(0);
+  const [partCount, setPartCount] = useState(1);
+  const parsed = useRef<{
+    file: PreviewFile;
+    doc: Awaited<ReturnType<typeof import('docx-preview').parseAsync>>;
+    source: Awaited<ReturnType<typeof readWordPackage>>;
+  } | null>(null);
   const [outline, setOutline] = useState<OutlineItem[]>([]);
   const [status, setStatus] = useState('正在读取文档…');
   const [error, setError] = useState('');
@@ -75,11 +88,12 @@ export default function WordPreview({
       const target = frame.current?.contentDocument;
       if (!target) return;
       target.body.replaceChildren();
+      target.head.querySelectorAll('style').forEach((style) => style.remove());
       setRendered(false);
       setError('');
       const style = target.createElement('style');
       style.textContent =
-        'html{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent} @supports selector(::-webkit-scrollbar){html{scrollbar-width:auto}} body{margin:0;font-family:Calibri,"Microsoft YaHei",sans-serif} .docx-wrapper{padding:24px 20px;background:transparent;min-height:100vh;box-sizing:border-box} .docx-wrapper>section.docx{box-shadow:0 2px 12px #00000018,0 0 0 1px #00000006;margin-bottom:24px} [class*="word-heading-"]{scroll-margin-top:28px} a{pointer-events:none} ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:1px solid transparent;background-clip:padding-box;border-radius:10px} ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover)} ::-webkit-scrollbar-track{background:transparent}';
+        'html{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent} @supports selector(::-webkit-scrollbar){html{scrollbar-width:auto}} body{margin:0;font-family:Calibri,"Microsoft YaHei",sans-serif} .docx-wrapper{padding:8px;background:transparent;min-height:100vh;box-sizing:border-box} .docx-wrapper>section.docx{border-radius:12px;overflow:hidden;box-shadow:none;margin-bottom:8px} [class*="word-heading-"]{scroll-margin-top:28px} a{pointer-events:none} ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:1px solid transparent;background-clip:padding-box;border-radius:10px} ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover)} ::-webkit-scrollbar-track{background:transparent}';
       target.body.append(style);
       target.addEventListener('click', (e) => {
         if ((e.target as Element).closest('a')) e.preventDefault();
@@ -116,24 +130,37 @@ export default function WordPreview({
         nodes = [wrapper];
       } else {
         setStatus('正在读取文档结构…');
-        const [source, engine] = await Promise.all([
-          readWordPackage(file, controller.signal),
-          import('docx-preview'),
-        ]);
-        if (controller.signal.aborted) return;
+        const engine = await import('docx-preview');
         const options = {
           useBase64URL: true,
           renderAltChunks: false,
           renderComments: false,
           ignoreLastRenderedPageBreak: true,
         };
-        setStatus('正在解析页面排版…');
-        const doc = await engine.parseAsync(source.data, options);
-        if (controller.signal.aborted) return;
+        if (parsed.current?.file !== file) {
+          const source = await readWordPackage(file, resourceController.current.signal);
+          setStatus('正在解析文档结构…');
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          controller.signal.throwIfAborted();
+          const doc = await engine.parseAsync(source.data, options);
+          controller.signal.throwIfAborted();
+          parsed.current = { file, doc, source };
+        }
+        const { source, doc } = parsed.current;
+        // Bound the live DOM for book-sized documents. Other sections are rendered on demand.
+        const children = doc.documentPart.body.children;
+        const count = children.length > 1000 ? Math.ceil(children.length / 200) : 1;
+        const currentPart = Math.min(part, count - 1);
+        setPartCount(count);
+        const body = {
+          ...doc.documentPart.body,
+          children:
+            count > 1 ? children.slice(currentPart * 200, (currentPart + 1) * 200) : children,
+        };
         // Keep the engine's image/font decoding, but supply missing binary parts on demand.
         const originalLoad = doc._package.load.bind(doc._package);
         let failedResources = 0;
-        doc._package.load = async (path: string, type: string) => {
+        const loadResource = async (path: string, type: string) => {
           const original = await originalLoad(path, type);
           if (original != null) return original;
           try {
@@ -146,10 +173,22 @@ export default function WordPreview({
             return null;
           }
         };
-        headings.push(...buildWordOutline(doc.documentPart.body, doc.stylesPart?.styles ?? []));
+        headings.push(...buildWordOutline(body, doc.stylesPart?.styles ?? []));
         let mounting: Promise<void> = Promise.resolve();
         setStatus('正在还原页面排版…');
-        nodes = await engine.renderDocument(doc, {
+        const renderDoc = Object.assign(Object.create(Object.getPrototypeOf(doc)), doc, {
+          _package: Object.assign(
+            Object.create(Object.getPrototypeOf(doc._package)),
+            doc._package,
+            { load: loadResource },
+          ),
+          documentPart: Object.assign(
+            Object.create(Object.getPrototypeOf(doc.documentPart)),
+            doc.documentPart,
+            { body },
+          ),
+        });
+        nodes = await engine.renderDocument(renderDoc, {
           ...options,
           h: wordDom(target, (wrapper) => {
             const pages = Array.from(wrapper.children);
@@ -159,7 +198,6 @@ export default function WordPreview({
               for (let index = 0; index < pages.length; index += 2) {
                 controller.signal.throwIfAborted();
                 wrapper.append(...pages.slice(index, index + 2));
-                setOutline(headings.filter((heading) => target.querySelector(`.${heading.id}`)));
                 setRendered(true);
                 setStatus(
                   `页面已显示，正在加载后续页面与图片… ${Math.min(index + 2, pages.length)} / ${pages.length}`,
@@ -189,7 +227,7 @@ export default function WordPreview({
       }
     });
     return () => controller.abort();
-  }, [file, ready, format]);
+  }, [file, ready, format, part]);
   useEffect(() => {
     if (!rendered) return;
     const apply = () => {
@@ -203,7 +241,7 @@ export default function WordPreview({
         const width = parseFloat(getComputedStyle(page).width);
         page.style.zoom = String(
           zoom === 'fit'
-            ? Math.min(1, Math.max(0.2, (frame.current!.clientWidth - 40) / width))
+            ? Math.min(1, Math.max(0.2, (frame.current!.clientWidth - 16) / width))
             : Number(zoom),
         );
       });
@@ -264,6 +302,19 @@ export default function WordPreview({
           {!error && <span className="spinner" />}
           {error || status}
           {error && <button onClick={onText}>尝试文字速览</button>}
+        </div>
+      )}
+      {partCount > 1 && (
+        <div className="word-segments" aria-label="长文档分段导航">
+          <button disabled={part === 0 || !!status} onClick={() => setPart(part - 1)}>
+            上一段
+          </button>
+          <span>
+            分段预览 {part + 1} / {partCount}
+          </span>
+          <button disabled={part >= partCount - 1 || !!status} onClick={() => setPart(part + 1)}>
+            下一段
+          </button>
         </div>
       )}
       <iframe

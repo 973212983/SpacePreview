@@ -3500,3 +3500,45 @@ button:disabled:hover {
 .mac-window-controls button:hover {
   opacity: 1;
 }
+
+/* Quick Look uses a quiet frame, with the content filling the available canvas. */
+:root[data-platform='macos'] .checkerboard {
+  background: var(--panel);
+  padding: 4px 8px 8px;
+}
+:root[data-platform='macos'] .preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+}
+:root[data-platform='macos'] .pdf-scroll {
+  padding: 8px;
+  background: var(--panel);
+}
+:root[data-platform='macos'] .pdf-page {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: none;
+  margin-bottom: 8px;
+}
+
+.word-segments {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.word-segments button:disabled {
+  opacity: 0.4;
+}

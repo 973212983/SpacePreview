@@ -191,10 +191,10 @@ export default function Preview({
     return wordText ? (
       <ParsedPreview file={file} kind="text" onLayout={() => setWordText(false)} />
     ) : (
-      <WordPreview file={file} format="rtf" onText={() => setWordText(true)} />
+      <WordPreview key={file.id} file={file} format="rtf" onText={() => setWordText(true)} />
     );
   if (kind === 'docx' && !wordText && mode !== 'text')
-    return <WordPreview file={file} onText={() => setWordText(true)} />;
+    return <WordPreview key={file.id} file={file} onText={() => setWordText(true)} />;
   if (kind === 'image') return <ImagePreview file={file} />;
   if (kind === 'pdf') return <PdfPreview file={file} />;
   if (kind === 'pptx' || kind === 'legacy-ppt')
@@ -623,8 +623,12 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
         Math.max(
           0.1,
           Math.min(
-            (scroller.clientWidth - 48) / pageSize.width,
-            (scroller.clientHeight - 48) / pageSize.height,
+            (scroller.clientWidth -
+              (document.documentElement.dataset.platform === 'macos' ? 16 : 48)) /
+              pageSize.width,
+            (scroller.clientHeight -
+              (document.documentElement.dataset.platform === 'macos' ? 16 : 48)) /
+              pageSize.height,
           ),
         ),
       ),

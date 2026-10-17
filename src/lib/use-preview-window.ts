@@ -66,8 +66,8 @@ export function usePreviewWindow(
           );
         return;
       }
-      // Wait for async preview type detection, rather than sizing its loading placeholder.
-      if (root.querySelector('.spinner')) return;
+      // Reading formats have a fixed canvas: reveal their loading feedback immediately.
+      if (kind === 'pdf' || kind === 'pptx') return;
       if (kind === 'audio') void resize(640, 480);
       else void resize();
     };
