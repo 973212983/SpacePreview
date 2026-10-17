@@ -20,6 +20,7 @@ function harness() {
   const scrollBy = vi.fn();
   const target = {
     defaultView: { scrollBy },
+    documentElement: { style: { overflowAnchor: 'auto' } },
     body: { append: (slot: unknown) => slots.push(slot) },
     createElement: () => {
       const slot = {
@@ -90,4 +91,13 @@ it('disconnects and prevents further mounting after closing the preview', async 
   h.notify(1, true);
   expect(h.disconnect).toHaveBeenCalledOnce();
   expect(render).toHaveBeenCalledTimes(1);
+});
+
+it('owns scroll anchoring on Chromium and restores it on disposal', () => {
+  const h = harness();
+  const controller = new AbortController();
+  mountWordScroll(h.target, 2, async () => {}, controller.signal, vi.fn());
+  expect(h.target.documentElement.style.overflowAnchor).toBe('none');
+  controller.abort();
+  expect(h.target.documentElement.style.overflowAnchor).toBe('auto');
 });

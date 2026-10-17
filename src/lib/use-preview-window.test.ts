@@ -63,3 +63,9 @@ it('uses an independent settings size and reveals settings when requested', asyn
   await vi.waitFor(() => expect(state.win.show).toHaveBeenCalledOnce());
   expect(state.win.setSize).toHaveBeenCalledWith({ width: 900, height: 660 });
 });
+
+it('does not resize or reveal Windows windows when macOS sizing is disabled', () => {
+  usePreviewWindow(false, 'portrait-image', false, 'image');
+  expect(state.win.setSize).not.toHaveBeenCalled();
+  expect(state.win.show).not.toHaveBeenCalled();
+});

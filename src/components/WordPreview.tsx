@@ -21,6 +21,8 @@ export default function WordPreview({
   format?: 'docx' | 'rtf';
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const macos = /Mac/i.test(navigator.platform);
+  const horizontalPadding = macos ? 16 : 40;
   const [ready, setReady] = useState(false);
   const resourceController = useRef(new AbortController());
   useEffect(() => {
@@ -97,7 +99,10 @@ export default function WordPreview({
       setError('');
       const style = target.createElement('style');
       style.textContent =
-        'html{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent} @supports selector(::-webkit-scrollbar){html{scrollbar-width:auto}} body{margin:0;font-family:Calibri,"Microsoft YaHei",sans-serif} .docx-wrapper{padding:8px;background:transparent;min-height:100vh;box-sizing:border-box} .docx-wrapper>section.docx{border-radius:12px;overflow:hidden;box-shadow:none;margin-bottom:8px} [class*="word-heading-"]{scroll-margin-top:28px} a{pointer-events:none} ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:1px solid transparent;background-clip:padding-box;border-radius:10px} ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover)} ::-webkit-scrollbar-track{background:transparent}';
+        'html{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent} @supports selector(::-webkit-scrollbar){html{scrollbar-width:auto}} body{margin:0;font-family:Calibri,"Microsoft YaHei",sans-serif} .docx-wrapper{padding:24px 20px;background:transparent;min-height:100vh;box-sizing:border-box} .docx-wrapper>section.docx{box-shadow:0 2px 12px #00000018,0 0 0 1px #00000006;margin-bottom:24px} [class*="word-heading-"]{scroll-margin-top:28px} a{pointer-events:none} ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:1px solid transparent;background-clip:padding-box;border-radius:10px} ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover)} ::-webkit-scrollbar-track{background:transparent}';
+      if (macos)
+        style.textContent +=
+          '.docx-wrapper{padding:8px}.docx-wrapper>section.docx{border-radius:12px;overflow:hidden;box-shadow:none;margin-bottom:8px}';
       target.body.append(style);
       target.addEventListener('click', (e) => {
         if ((e.target as Element).closest('a')) e.preventDefault();
@@ -214,7 +219,7 @@ export default function WordPreview({
                         1,
                         Math.max(
                           0.2,
-                          (frame.current!.clientWidth - 16) /
+                          (frame.current!.clientWidth - horizontalPadding) /
                             parseFloat(getComputedStyle(page).width),
                         ),
                       ),
@@ -227,8 +232,7 @@ export default function WordPreview({
         };
         if (count > 1) {
           const continuous = target.createElement('style');
-          continuous.textContent =
-            '.word-continuous{padding:0 8px!important;min-height:0!important}.word-continuous>section.docx{margin-bottom:0!important;border-radius:0!important;min-height:0!important;padding-top:0!important;padding-bottom:0!important}[data-word-section="0"] section.docx:first-child{padding-top:56px!important}';
+          continuous.textContent = `.word-continuous{padding:0 ${horizontalPadding / 2}px!important;min-height:0!important}.word-continuous>section.docx{margin-bottom:0!important;border-radius:0!important;min-height:0!important;padding-top:0!important;padding-bottom:0!important}[data-word-section="0"] section.docx:first-child{padding-top:56px!important}`;
           target.head.append(continuous);
           mountWordScroll(target, count, renderSection, controller.signal, (error) =>
             setError(String(error)),
@@ -254,7 +258,7 @@ export default function WordPreview({
       }
     });
     return () => controller.abort();
-  }, [file, ready, format]);
+  }, [file, ready, format, macos, horizontalPadding]);
   useEffect(() => {
     if (!rendered) return;
     const apply = () => {
@@ -268,7 +272,7 @@ export default function WordPreview({
         const width = parseFloat(getComputedStyle(page).width);
         page.style.zoom = String(
           zoom === 'fit'
-            ? Math.min(1, Math.max(0.2, (frame.current!.clientWidth - 16) / width))
+            ? Math.min(1, Math.max(0.2, (frame.current!.clientWidth - horizontalPadding) / width))
             : Number(zoom),
         );
       });
@@ -282,7 +286,7 @@ export default function WordPreview({
       resize.disconnect();
       theme.disconnect();
     };
-  }, [zoom, rendered, outline]);
+  }, [zoom, rendered, outline, horizontalPadding]);
   return (
     <ReadingLayout
       outline={outline}

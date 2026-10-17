@@ -617,6 +617,8 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
   const [outline, setOutline] = useState<{ title: string; dest: unknown; depth: number }[]>([]);
   useEffect(() => {
     if (!doc || !scroll.current) return;
+    // Preserve Windows' normal PDF reading scale; Quick Look fits the full page.
+    if (!presentation && document.documentElement.dataset.platform !== 'macos') return;
     const scroller = scroll.current;
     const resize = new ResizeObserver(() =>
       setFitZoom(

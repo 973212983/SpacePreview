@@ -30,6 +30,7 @@ export function ReadingLayout({
   const nav = useRef<HTMLElement>(null);
   const drag = useRef<{ x: number; width: number } | null>(null);
   const current = activeId ?? active;
+  const showOutline = open && outline.length > 0;
   useEffect(() => {
     const button = nav.current?.querySelector<HTMLElement>('[aria-current="location"]');
     if (!button || !nav.current) return;
@@ -42,9 +43,10 @@ export function ReadingLayout({
     <div className="reading-view">
       <PreviewToolbar className="reading-tools">
         <button
-          className={open ? 'selected' : ''}
+          className={showOutline ? 'selected' : ''}
+          disabled={!outline.length}
           title="切换文档大纲"
-          aria-expanded={open}
+          aria-expanded={showOutline}
           onClick={() => setOpen((v) => !v)}
         >
           <List size={15} /> 大纲
@@ -52,7 +54,7 @@ export function ReadingLayout({
         {toolbar}
       </PreviewToolbar>
       <div className="reading-body">
-        {open && (
+        {showOutline && (
           <aside className="reading-outline" aria-label="文档大纲" style={{ width }}>
             <div className="outline-caption">
               文档大纲 <span>{outline.length}</span>
@@ -90,14 +92,13 @@ export function ReadingLayout({
                   </button>
                 ))}
             </nav>
-            {!outline.length && <p className="outline-empty">文档未设置标题层级</p>}
             {filter &&
               !outline.some((item) => item.title.toLowerCase().includes(filter.toLowerCase())) && (
                 <p className="outline-empty">没有匹配的标题</p>
               )}
           </aside>
         )}
-        {open && (
+        {showOutline && (
           <div
             className="outline-resizer"
             role="separator"

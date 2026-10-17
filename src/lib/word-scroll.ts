@@ -7,6 +7,9 @@ export function mountWordScroll(
   onError: (error: unknown) => void,
 ) {
   const win = target.defaultView!;
+  // Chromium/WebView2 must not apply its own anchoring on top of our compensation.
+  const previousAnchoring = target.documentElement.style.overflowAnchor;
+  target.documentElement.style.overflowAnchor = 'none';
   const slots = Array.from({ length: count }, (_, index) => {
     const slot = target.createElement('div');
     slot.dataset.wordSection = String(index);
@@ -69,6 +72,7 @@ export function mountWordScroll(
   const dispose = () => {
     disposed = true;
     observer.disconnect();
+    target.documentElement.style.overflowAnchor = previousAnchoring;
     wanted.clear();
   };
   signal.addEventListener('abort', dispose, { once: true });
