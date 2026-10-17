@@ -25,6 +25,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import Preview from './components/Preview';
+import { usePreviewWindow } from './lib/use-preview-window';
 import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
 import { useAppUpdate } from './lib/use-app-update';
@@ -123,6 +124,7 @@ export default function App() {
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[0];
+  usePreviewWindow(desktop && macos, file ? `${file.id}:${mode}` : '', settingsOpen);
   useEffect(() => {
     if (!desktop || (file && !settingsOpen)) return;
     let cancelled = false;
@@ -464,7 +466,7 @@ export default function App() {
       }
       if (
         event.target instanceof HTMLElement &&
-        event.target.closest('input, textarea, select, [contenteditable="true"], audio, video')
+        event.target.closest('input, textarea, select, [contenteditable="true"]')
       )
         return;
       if (event.key === 'Escape') {
@@ -492,6 +494,7 @@ export default function App() {
         )
       ) {
         event.preventDefault();
+        event.stopPropagation();
         if (event.repeat) return;
         spaceAction.current = {
           action: previewError ? 'close' : file ? (event.shiftKey ? 'text' : 'close') : 'choose',
@@ -530,17 +533,18 @@ export default function App() {
       cancelSpace();
       if (!pending || pending.version !== request.current) return;
       event.preventDefault();
+      event.stopPropagation();
       // Keep focus unchanged until the native hook has observed the release.
       if (pending.action === 'text') setMode((m) => (m === 'text' ? 'auto' : 'text'));
       else if (pending.action === 'close') closePreview();
       else void choose();
     };
-    window.addEventListener('keydown', keydown);
-    window.addEventListener('keyup', keyup);
+    window.addEventListener('keydown', keydown, true);
+    window.addEventListener('keyup', keyup, true);
     window.addEventListener('blur', cancelSpace);
     return () => {
-      window.removeEventListener('keydown', keydown);
-      window.removeEventListener('keyup', keyup);
+      window.removeEventListener('keydown', keydown, true);
+      window.removeEventListener('keyup', keyup, true);
       window.removeEventListener('blur', cancelSpace);
     };
   });
@@ -1157,7 +1161,7 @@ export default function App() {
                   </div>
                   <p className="shortcut-help">
                     文字默认 16px（10–40px），每次调整 2px；更多菜单可选择字体和字号。Word/RTF
-                    页面、PDF 保留原字体，快捷键缩放页面。输入框及媒体控件保留自身按键；Esc
+                    页面、PDF 保留原字体，快捷键缩放页面。输入框保留自身按键；播放视频后仍可用预览快捷键关闭；Esc
                     先关闭菜单或设置。
                   </p>
                 </section>

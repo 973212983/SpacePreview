@@ -6,6 +6,10 @@
   "permissions": [
     "core:default",
     "core:window:allow-hide",
+    "core:window:allow-set-size",
+    "core:window:allow-center",
+    "core:window:allow-current-monitor",
+    "core:window:allow-is-fullscreen",
     "core:window:allow-set-theme",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
