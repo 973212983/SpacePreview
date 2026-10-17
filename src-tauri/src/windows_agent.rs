@@ -330,14 +330,7 @@ pub fn start(app: AppHandle) {
                         _ => "没有读取到普通文件，请选中文件后再按 Space。".into(),
                     };
                     crate::diagnostics::record(format!("selection unavailable: {message}"));
-                    if GetForegroundWindow() != foreground {
-                        continue;
-                    }
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
-                    let _ = app.emit("agent-selection-error", message);
+
                 }
             }
         }

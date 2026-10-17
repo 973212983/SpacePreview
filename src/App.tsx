@@ -386,6 +386,7 @@ export default function App() {
     void register(
       listen('preview-closed', () => {
         trace('native-close');
+        setSettingsOpen(false);
         setPreviewError('');
         request.current++;
         setFiles([]);

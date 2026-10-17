@@ -10,7 +10,7 @@ export function usePreviewWindow(
   kind: string,
 ) {
   useEffect(() => {
-    if (!enabled || (!identity && !settingsOpen)) return;
+    if (!enabled) return;
     let cancelled = false;
     let finished = false;
     const win = getCurrentWindow();
@@ -30,7 +30,7 @@ export function usePreviewWindow(
       } catch (error) {
         console.warn('Preview window sizing failed', error);
       } finally {
-        if (!cancelled && !(await win.isVisible())) {
+        if (!cancelled && (identity || settingsOpen) && !(await win.isVisible())) {
           await win.show();
           await win.setFocus();
         }
@@ -38,8 +38,8 @@ export function usePreviewWindow(
     };
     const measure = () => {
       if (finished || cancelled) return;
-      if (settingsOpen) {
-        void resize();
+      if (!identity || settingsOpen) {
+        void resize(settingsOpen ? 900 : 720, settingsOpen ? 616 : 436);
         return;
       }
       const root = document.querySelector('.preview-layer:not([hidden])');

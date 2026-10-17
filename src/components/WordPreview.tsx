@@ -3,6 +3,7 @@ import type { PreviewFile } from '../lib/files';
 import { readFullBytes } from '../lib/bridge';
 import { readWordPackage } from '../lib/word-package';
 import { wordDom } from '../lib/word-dom';
+import { mountWordScroll } from '../lib/word-scroll';
 import { trackReadingPosition } from '../lib/reading-position';
 import { buildWordOutline } from '../lib/word-outline';
 import { forwardPreviewKey } from '../lib/shortcuts';
@@ -27,8 +28,7 @@ export default function WordPreview({
     resourceController.current = controller;
     return () => controller.abort();
   }, [file]);
-  const [part, setPart] = useState(0);
-  const [partCount, setPartCount] = useState(1);
+
   const parsed = useRef<{
     file: PreviewFile;
     doc: Awaited<ReturnType<typeof import('docx-preview').parseAsync>>;
@@ -59,6 +59,10 @@ export default function WordPreview({
   useEffect(() => {
     const doc = frame.current?.contentDocument;
     if (!rendered || !doc?.scrollingElement) return;
+    if (doc.querySelector('[data-word-section]')) {
+      setPageCount(0);
+      return;
+    }
     const headings = outline.flatMap((item) => {
       const element = doc.querySelector(`.${item.id}`);
       return element ? [{ id: item.id, element }] : [];
@@ -150,13 +154,6 @@ export default function WordPreview({
         // Bound the live DOM for book-sized documents. Other sections are rendered on demand.
         const children = doc.documentPart.body.children;
         const count = children.length > 1000 ? Math.ceil(children.length / 200) : 1;
-        const currentPart = Math.min(part, count - 1);
-        setPartCount(count);
-        const body = {
-          ...doc.documentPart.body,
-          children:
-            count > 1 ? children.slice(currentPart * 200, (currentPart + 1) * 200) : children,
-        };
         // Keep the engine's image/font decoding, but supply missing binary parts on demand.
         const originalLoad = doc._package.load.bind(doc._package);
         let failedResources = 0;
@@ -173,43 +170,73 @@ export default function WordPreview({
             return null;
           }
         };
-        headings.push(...buildWordOutline(body, doc.stylesPart?.styles ?? []));
-        let mounting: Promise<void> = Promise.resolve();
-        setStatus('正在还原页面排版…');
-        const renderDoc = Object.assign(Object.create(Object.getPrototypeOf(doc)), doc, {
-          _package: Object.assign(
-            Object.create(Object.getPrototypeOf(doc._package)),
-            doc._package,
-            { load: loadResource },
-          ),
-          documentPart: Object.assign(
-            Object.create(Object.getPrototypeOf(doc.documentPart)),
-            doc.documentPart,
-            { body },
-          ),
-        });
-        nodes = await engine.renderDocument(renderDoc, {
-          ...options,
-          h: wordDom(target, (wrapper) => {
-            const pages = Array.from(wrapper.children);
-            wrapper.replaceChildren();
-            target.body.append(wrapper);
-            mounting = (async () => {
-              for (let index = 0; index < pages.length; index += 2) {
-                controller.signal.throwIfAborted();
-                wrapper.append(...pages.slice(index, index + 2));
+        const styles = new Set<string>();
+        const renderSection = async (index: number, host: HTMLElement) => {
+          controller.signal.throwIfAborted();
+          const body = {
+            ...doc.documentPart.body,
+            children: count > 1 ? children.slice(index * 200, (index + 1) * 200) : children,
+          };
+          // The outline is limited to mounted content; never rescan the full manuscript.
+          if (count === 1) headings.push(...buildWordOutline(body, doc.stylesPart?.styles ?? []));
+          const renderDoc = Object.assign(Object.create(Object.getPrototypeOf(doc)), doc, {
+            _package: Object.assign(
+              Object.create(Object.getPrototypeOf(doc._package)),
+              doc._package,
+              { load: loadResource },
+            ),
+            documentPart: Object.assign(
+              Object.create(Object.getPrototypeOf(doc.documentPart)),
+              doc.documentPart,
+              { body },
+            ),
+          });
+          await engine.renderDocument(renderDoc, {
+            ...options,
+            renderHeaders: count === 1 || index === 0,
+            renderFooters: count === 1 || index === count - 1,
+            h: wordDom(
+              target,
+              (wrapper) => {
+                if (controller.signal.aborted) return;
+                if (count > 1) wrapper.classList.add('word-continuous');
+                host.append(wrapper);
                 setRendered(true);
-                setStatus(
-                  `页面已显示，正在加载后续页面与图片… ${Math.min(index + 2, pages.length)} / ${pages.length}`,
-                );
-                await new Promise((resolve) => setTimeout(resolve, 16));
-              }
-            })();
-            // Cancellation is handled by the enclosing load task, including while images are pending.
-            void mounting.catch(() => {});
-          }),
-        });
-        await mounting;
+                setStatus('');
+                // Fit before measuring the placeholder, including sections loaded while scrolling.
+                const first = target.querySelector<HTMLElement>('section.docx');
+                const fitted = first?.style.zoom;
+                wrapper.querySelectorAll<HTMLElement>('section.docx').forEach((page) => {
+                  page.style.zoom =
+                    fitted ||
+                    String(
+                      Math.min(
+                        1,
+                        Math.max(
+                          0.2,
+                          (frame.current!.clientWidth - 16) /
+                            parseFloat(getComputedStyle(page).width),
+                        ),
+                      ),
+                    );
+                });
+              },
+              styles,
+            ),
+          });
+        };
+        if (count > 1) {
+          const continuous = target.createElement('style');
+          continuous.textContent =
+            '.word-continuous{padding:0 8px!important;min-height:0!important}.word-continuous>section.docx{margin-bottom:0!important;border-radius:0!important;min-height:0!important;padding-top:0!important;padding-bottom:0!important}[data-word-section="0"] section.docx:first-child{padding-top:56px!important}';
+          target.head.append(continuous);
+          mountWordScroll(target, count, renderSection, controller.signal, (error) =>
+            setError(String(error)),
+          );
+          return;
+        }
+        await renderSection(0, target.body);
+        nodes = [];
         if (failedResources) setError(`${failedResources} 个图片或字体未能加载，已保留可用页面。`);
       }
       if (controller.signal.aborted) return;
@@ -227,7 +254,7 @@ export default function WordPreview({
       }
     });
     return () => controller.abort();
-  }, [file, ready, format, part]);
+  }, [file, ready, format]);
   useEffect(() => {
     if (!rendered) return;
     const apply = () => {
@@ -302,19 +329,6 @@ export default function WordPreview({
           {!error && <span className="spinner" />}
           {error || status}
           {error && <button onClick={onText}>尝试文字速览</button>}
-        </div>
-      )}
-      {partCount > 1 && (
-        <div className="word-segments" aria-label="长文档分段导航">
-          <button disabled={part === 0 || !!status} onClick={() => setPart(part - 1)}>
-            上一段
-          </button>
-          <span>
-            分段预览 {part + 1} / {partCount}
-          </span>
-          <button disabled={part >= partCount - 1 || !!status} onClick={() => setPart(part + 1)}>
-            下一段
-          </button>
         </div>
       )}
       <iframe
