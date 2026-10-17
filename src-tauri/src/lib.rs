@@ -488,9 +488,16 @@ fn initial_paths(state: State<PreviewState>) -> Result<serde_json::Value, String
 
 fn show_preview_files(app: &tauri::AppHandle, paths: Vec<String>, text: bool) {
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_focus();
+        // macOS reveals file previews after the WebView resolves their initial size.
+        #[cfg(target_os = "macos")]
+        if !paths.is_empty() {
+            let _ = window.hide();
+        }
+        if !cfg!(target_os = "macos") || paths.is_empty() {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        }
         if !paths.is_empty() {
             let state = app.state::<PreviewState>();
             if let Ok(mut startup) = state.startup.lock() {

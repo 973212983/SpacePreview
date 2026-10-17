@@ -124,7 +124,12 @@ export default function App() {
   const spaceAction = useRef<{ action: 'close' | 'text' | 'choose'; version: number } | null>(null);
   const previousArchiveDepth = useRef(0);
   const file = archiveStack.at(-1) ?? files[0];
-  usePreviewWindow(desktop && macos, file ? `${file.id}:${mode}` : '', settingsOpen);
+  usePreviewWindow(
+    desktop && macos && !opening,
+    file ? `${file.id}:${mode}:${request.current}` : '',
+    settingsOpen,
+    mode === 'auto' && file && !file.directory ? detectKind(file.name) : 'text',
+  );
   useEffect(() => {
     if (!desktop || (file && !settingsOpen)) return;
     let cancelled = false;
@@ -276,12 +281,16 @@ export default function App() {
           setArchiveStack([]);
           setSettingsOpen(false);
           setPreviewError(String(e));
+          if (desktop && macos) {
+            await getCurrentWindow().show();
+            await getCurrentWindow().setFocus();
+          }
         }
       } finally {
         if (version === request.current) setOpening(false);
       }
     },
-    [loadFiles],
+    [loadFiles, macos],
   );
 
   const choose = useCallback(async () => {
@@ -1161,7 +1170,8 @@ export default function App() {
                   </div>
                   <p className="shortcut-help">
                     文字默认 16px（10–40px），每次调整 2px；更多菜单可选择字体和字号。Word/RTF
-                    页面、PDF 保留原字体，快捷键缩放页面。输入框保留自身按键；播放视频后仍可用预览快捷键关闭；Esc
+                    页面、PDF
+                    保留原字体，快捷键缩放页面。输入框保留自身按键；播放视频后仍可用预览快捷键关闭；Esc
                     先关闭菜单或设置。
                   </p>
                 </section>

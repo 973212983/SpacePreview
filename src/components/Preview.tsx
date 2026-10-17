@@ -616,7 +616,7 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
   const [searchNote, setSearchNote] = useState('');
   const [outline, setOutline] = useState<{ title: string; dest: unknown; depth: number }[]>([]);
   useEffect(() => {
-    if (!presentation || !doc || !scroll.current) return;
+    if (!doc || !scroll.current) return;
     const scroller = scroll.current;
     const resize = new ResizeObserver(() =>
       setFitZoom(
@@ -766,7 +766,11 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
       ?.scrollIntoView({ block: 'start' });
   }, [zoom, fitZoom]);
   return (
-    <div className="pdf-preview">
+    <div
+      className="pdf-preview"
+      data-page-width={doc ? pageSize.width : undefined}
+      data-page-height={doc ? pageSize.height : undefined}
+    >
       <PreviewAdjustmentIndicator
         visible={adjusting}
         label="缩放"
@@ -906,10 +910,10 @@ function MediaPreview({ file, audio }: { file: PreviewFile; audio: boolean }) {
           </div>
           <h2>{file.name}</h2>
           <p>停下来，听一会儿。</p>
-          {url && <audio controls src={url} onError={() => setError(true)} />}
+          {url && <audio autoPlay controls src={url} onError={() => setError(true)} />}
         </>
       ) : (
-        url && <video controls playsInline src={url} onError={() => setError(true)} />
+        url && <video autoPlay controls playsInline src={url} onError={() => setError(true)} />
       )}
     </div>
   );

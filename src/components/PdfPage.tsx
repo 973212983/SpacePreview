@@ -85,8 +85,6 @@ export default function PdfPage({
       ref={container}
       className="pdf-page"
       data-pdf-page={number}
-      data-page-width={size.width}
-      data-page-height={size.height}
       data-rendered={rendered}
       aria-label={`PDF 第 ${number} 页`}
       style={{ width: size.width * zoom, height: size.height * zoom }}
