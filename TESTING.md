@@ -5,7 +5,9 @@
 - 发布矩阵新增 Ubuntu 22.04 / Linux x64，生成 `.deb`、AppImage 和签名，检查 ELF/DEB 架构并在 Xvfb 中检查桌面进程启动；Windows x64 与 Mac Intel/ARM 保持原构建流程。
 - 更新清单新增 `linux-x86_64` AppImage，测试覆盖四种架构映射，以及任一架构缺包、空包、缺签名、无效签名时拒绝生成清单。123 项前端单元测试及 TypeScript/Vite 生产构建通过；版本一致性与差异空白检查通过。
 - 生产构建的 Edge 浏览器重试检查通过：模拟 PDF/Word 读取失败后同一文件重新加载，PDF 页面恢复、Word 两页及图片恢复、连续失败重试均正常且无页面脚本异常。修正测试脚本对 PDF Blob 读取的故障注入（使用 XMLHttpRequest）；这不等同于原始 Windows 原生路径间歇性问题已复现。
-- GitHub 四种架构的构建、签名与安装包检查结果以本次 Actions 运行结果为准；Linux 文件管理器空格监听未实现，macOS Developer ID 签名和公证未完成，PDF/Word 实机重试回归仍待完成。
+- [GitHub Actions 39993319226](https://github.com/likehao19/SpacePreview/actions/runs/39993319226) 的 Windows x64、Linux x64、Mac Intel、Mac ARM 构建及发布全部成功；原生测试、签名产物收集、Windows PE/Mac 架构与签名/DMG 检查、Linux ELF/DEB 架构与 Xvfb 启动检查通过。
+- [v0.10.13 Release](https://github.com/likehao19/SpacePreview/releases/tag/v0.10.13) 已公开并标为最新稳定版，共 13 个附件，包括 5 个安装包。核对安装包均非空、校验文件覆盖安装包、更新清单包含四种架构且指向已发布更新包和签名；下载的 latest.json SHA-256 与发布的校验文件一致。未下载并重算全部安装包，安装包校验和由发布任务生成。
+- Linux 文件管理器空格监听未实现，macOS Developer ID 签名和公证未完成，PDF/Word 原生路径实机重试回归仍待完成。
 
 ## 提交前回归（2026-10-24）
 
