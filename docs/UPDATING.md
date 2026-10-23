@@ -23,15 +23,17 @@ macOS 替换应用后重启。重启失败时保留「重启瞬览」入口，�
 发布工作流使用 `src-tauri/tauri.updater.conf.json` 开启更新产物签名。普通开发、PR 构建
 和 `npm run desktop:build` 不需要私钥，且不生成可发布的签名更新包。
 
-三平台构建成功后，`scripts/package-release.mjs` 收集：
+Windows、Linux、两种 macOS 架构全部构建成功后，`scripts/package-release.mjs` 收集：
 
 | 平台标识 | 更新包 | 签名 |
 | --- | --- | --- |
 | `windows-x86_64` | `SpacePreview-版本-windows-x64-setup.exe` | 同名 `.sig` |
 | `darwin-x86_64` | `SpacePreview-版本-macos-x64.app.tar.gz` | 同名 `.sig` |
 | `darwin-aarch64` | `SpacePreview-版本-macos-arm64.app.tar.gz` | 同名 `.sig` |
+| `linux-x86_64` | `SpacePreview-版本-linux-x64.AppImage` | 同名 `.sig` |
 
 macOS DMG 保留给首次安装使用。更新清单使用带版本的下载地址，签名保存的是 `.sig` 内容。
+Linux AppImage 支持应用内更新；`.deb` 用户通过下载安装新版本升级。Linux 安装包在 Ubuntu 22.04 构建，首次提供文件拖入和 Ctrl+O 预览，暂不支持文件管理器空格唤起。
 `scripts/updater-manifest.mjs` 检查全部更新包与签名后才写入 `release-assets/latest.json`；
 发布工作流一起上传安装包、更新包、签名、清单与 SHA-256 校验文件。
 仅发布稳定版，版本比较由官方更新器完成，不自动降级。

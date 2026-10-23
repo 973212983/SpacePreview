@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 describe('signed release manifest', () => {
-  it('maps all three architectures to versioned update assets, not Mac DMGs', () => {
+  it('maps all four architectures to versioned update assets', () => {
     const manifest = createUpdateManifest(
       fixtures(),
       '0.11.0',
@@ -38,6 +38,7 @@ describe('signed release manifest', () => {
       'windows-x86_64',
       'darwin-x86_64',
       'darwin-aarch64',
+      'linux-x86_64',
     ]);
     for (const [platform, target] of Object.entries(updateTargets)) {
       expect(manifest.platforms[target]).toEqual({
@@ -45,18 +46,21 @@ describe('signed release manifest', () => {
         url: `https://github.com/likehao19/SpacePreview/releases/download/v0.11.0/${updateAssetName('0.11.0', platform)}`,
       });
     }
+    expect(manifest.platforms['linux-x86_64'].url).toMatch(/linux-x64\.AppImage$/);
   });
   it('rejects missing, empty or unsigned artifacts before publishing', () => {
-    for (const failure of ['missing', 'empty', 'unsigned', 'invalid']) {
-      const directory = fixtures();
-      const artifact = path.join(directory, updateAssetName('0.11.0', 'macos-arm64'));
-      if (failure === 'missing') fs.unlinkSync(artifact);
-      if (failure === 'empty') fs.writeFileSync(artifact, '');
-      if (failure === 'unsigned') fs.unlinkSync(`${artifact}.sig`);
-      if (failure === 'invalid') fs.writeFileSync(`${artifact}.sig`, '');
-      expect(() =>
-        createUpdateManifest(directory, '0.11.0', 'likehao19/SpacePreview', ''),
-      ).toThrow();
+    for (const platform of Object.keys(updateTargets)) {
+      for (const failure of ['missing', 'empty', 'unsigned', 'invalid']) {
+        const directory = fixtures();
+        const artifact = path.join(directory, updateAssetName('0.11.0', platform));
+        if (failure === 'missing') fs.unlinkSync(artifact);
+        if (failure === 'empty') fs.writeFileSync(artifact, '');
+        if (failure === 'unsigned') fs.unlinkSync(`${artifact}.sig`);
+        if (failure === 'invalid') fs.writeFileSync(`${artifact}.sig`, '');
+        expect(() =>
+          createUpdateManifest(directory, '0.11.0', 'likehao19/SpacePreview', ''),
+        ).toThrow();
+      }
     }
   });
   it('rejects prereleases, malformed versions and repository paths', () => {

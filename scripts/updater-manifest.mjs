@@ -6,11 +6,12 @@ export const updateTargets = {
   'windows-x64': 'windows-x86_64',
   'macos-x64': 'darwin-x86_64',
   'macos-arm64': 'darwin-aarch64',
+  'linux-x64': 'linux-x86_64',
 };
 
 export function updateAssetName(version, platform) {
   if (!updateTargets[platform]) throw new Error(`Unsupported update platform: ${platform}`);
-  return `SpacePreview-${version}-${platform}${platform === 'windows-x64' ? '-setup.exe' : '.app.tar.gz'}`;
+  return `SpacePreview-${version}-${platform}${platform === 'windows-x64' ? '-setup.exe' : platform === 'linux-x64' ? '.AppImage' : '.app.tar.gz'}`;
 }
 
 /** Publish only a complete set: a partial manifest would strand one architecture. */

@@ -31,10 +31,15 @@ jobs:
             runner: macos-15
             target: aarch64-apple-darwin
             bundles: app,dmg
+          - platform: linux-x64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     env:
       MACOSX_DEPLOYMENT_TARGET: '12.3'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,6 +50,11 @@ jobs:
           cache: npm
       - name: Check release version
         run: node scripts/check-release-version.mjs
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf xvfb dbus-x11
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -77,6 +87,15 @@ jobs:
         run: npm run tauri -- build --ci --config src-tauri/tauri.updater.conf.json --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} -- --locked
       - name: Verify and collect installer
         run: node scripts/package-release.mjs ${{ matrix.target }} ${{ matrix.platform }}
+      - name: Check Linux desktop startup
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set +e
+          xvfb-run -a dbus-run-session -- timeout 10s src-tauri/target/${{ matrix.target }}/release/space-preview > linux-startup.log 2>&1
+          STATUS=$?
+          cat linux-startup.log
+          test "$STATUS" -eq 124
       - uses: actions/upload-artifact@v4
         with:
           name: installer-${{ matrix.platform }}
@@ -85,7 +104,7 @@ jobs:
           retention-days: 14
 
   publish:
-    name: Publish all three installers
+    name: Publish all platform installers
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -113,8 +132,10 @@ jobs:
           test -f "release-assets/SpacePreview-$VERSION-windows-x64-setup.exe"
           test -f "release-assets/SpacePreview-$VERSION-macos-x64.dmg"
           test -f "release-assets/SpacePreview-$VERSION-macos-arm64.dmg"
+          test -f "release-assets/SpacePreview-$VERSION-linux-x64.deb"
+          test -f "release-assets/SpacePreview-$VERSION-linux-x64.AppImage"
           test -f "release-assets/latest.json"
-          (cd release-assets && sha256sum *.exe *.dmg *.tar.gz *.sig latest.json > SHA256SUMS.txt)
+          (cd release-assets && sha256sum *.exe *.dmg *.deb *.AppImage *.tar.gz *.sig latest.json > SHA256SUMS.txt)
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "SpacePreview $TAG" --notes-file RELEASE-NOTES.md
           fi
