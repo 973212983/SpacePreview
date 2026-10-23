@@ -186,21 +186,19 @@ export default function DocumentReader({
     });
     const anchors = new Map<string, string>();
     const counts = new Map<string, number>();
-    const outline = Array.from(parsed.querySelectorAll('h1,h2,h3,h4,h5,h6'))
-      .slice(0, 1000)
-      .map((heading, i) => {
-        const title = heading.textContent?.trim() || '无标题';
-        const slug = title
-          .toLowerCase()
-          .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-          .replace(/\s/g, '-');
-        const count = counts.get(slug) || 0;
-        counts.set(slug, count + 1);
-        if (heading.id) anchors.set(heading.id, `reader-heading-${i}`);
-        anchors.set(count ? `${slug}-${count}` : slug, `reader-heading-${i}`);
-        heading.id = `reader-heading-${i}`;
-        return { id: heading.id, title, level: Number(heading.tagName[1]) };
-      });
+    const outline = Array.from(parsed.querySelectorAll('h1,h2,h3,h4,h5,h6')).map((heading, i) => {
+      const title = heading.textContent?.trim() || '无标题';
+      const slug = title
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+        .replace(/\s/g, '-');
+      const count = counts.get(slug) || 0;
+      counts.set(slug, count + 1);
+      if (heading.id) anchors.set(heading.id, `reader-heading-${i}`);
+      anchors.set(count ? `${slug}-${count}` : slug, `reader-heading-${i}`);
+      heading.id = `reader-heading-${i}`;
+      return { id: heading.id, title, level: Number(heading.tagName[1]) };
+    });
     parsed.querySelectorAll('a[href^="#"]').forEach((a) => {
       try {
         const id = anchors.get(decodeURIComponent(a.getAttribute('href')!.slice(1)));
