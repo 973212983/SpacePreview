@@ -8,6 +8,7 @@ import { wordDom } from '../lib/word-dom';
 import { mountWordScroll } from '../lib/word-scroll';
 import { trackReadingPosition } from '../lib/reading-position';
 import { buildWordOutline } from '../lib/word-outline';
+import { documentError } from '../lib/document-error';
 import { forwardPreviewKey } from '../lib/shortcuts';
 import { forwardPreviewWheel } from '../lib/preview-gestures';
 import { PreviewAdjustmentIndicator, usePreviewGestures } from './TextAppearance';
@@ -26,12 +27,13 @@ export default function WordPreview({
   const macos = /Mac/i.test(navigator.platform);
   const horizontalPadding = macos ? 16 : 40;
   const [ready, setReady] = useState(false);
+  const [retry, setRetry] = useState(0);
   const resourceController = useRef(new AbortController());
   useEffect(() => {
     const controller = new AbortController();
     resourceController.current = controller;
     return () => controller.abort();
-  }, [file]);
+  }, [file, retry]);
 
   const parsed = useRef<{
     file: PreviewFile;
@@ -151,6 +153,10 @@ export default function WordPreview({
       target.head.querySelectorAll('style').forEach((style) => style.remove());
       setRendered(false);
       setError('');
+      setStatus('正在读取文档…');
+      setOutline([]);
+      setPageCount(0);
+      setPage(1);
       const style = target.createElement('style');
       style.textContent =
         'html{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent} @supports selector(::-webkit-scrollbar){html{scrollbar-width:auto}} body{margin:0;font-family:Calibri,"Microsoft YaHei",sans-serif} .docx-wrapper{padding:24px 20px;background:transparent;min-height:100vh;box-sizing:border-box} .docx-wrapper>section.docx{box-shadow:0 2px 12px #00000018,0 0 0 1px #00000006;margin-bottom:24px} [class*="word-heading-"]{scroll-margin-top:28px} a{pointer-events:none} ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:1px solid transparent;background-clip:padding-box;border-radius:10px} ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover)} ::-webkit-scrollbar-track{background:transparent}';
@@ -158,13 +164,20 @@ export default function WordPreview({
         style.textContent +=
           '.docx-wrapper{padding:8px}.docx-wrapper>section.docx{border-radius:12px;overflow:hidden;box-shadow:none;margin-bottom:8px}';
       target.body.append(style);
-      target.addEventListener('click', (e) => {
-        if ((e.target as Element).closest('a')) e.preventDefault();
-      });
+      target.addEventListener(
+        'click',
+        (e) => {
+          if ((e.target as Element).closest('a')) e.preventDefault();
+        },
+        { signal: controller.signal },
+      );
       // Forward closing/navigation keys from the sandboxed document to the app.
       for (const type of ['keydown', 'keyup'] as const)
-        target.addEventListener(type, forwardPreviewKey);
-      target.addEventListener('wheel', forwardPreviewWheel, { passive: false });
+        target.addEventListener(type, forwardPreviewKey, { signal: controller.signal });
+      target.addEventListener('wheel', forwardPreviewWheel, {
+        passive: false,
+        signal: controller.signal,
+      });
       const headings: OutlineItem[] = [];
       let nodes: Node[];
       if (format === 'rtf') {
@@ -292,7 +305,7 @@ export default function WordPreview({
           continuous.textContent = `.word-continuous{padding:0 ${horizontalPadding / 2}px!important;min-height:0!important}.word-continuous>section.docx{margin-bottom:0!important;border-radius:0!important;min-height:0!important;padding-top:0!important;padding-bottom:0!important}[data-word-section="0"] section.docx:first-child{padding-top:56px!important}`;
           target.head.append(continuous);
           mountWordScroll(target, count, renderSection, controller.signal, (error) =>
-            setError(String(error)),
+            setError(documentError('Word', error)),
           );
           return;
         }
@@ -310,12 +323,12 @@ export default function WordPreview({
     };
     void load().catch((e) => {
       if (!controller.signal.aborted) {
-        setError(String(e.message ?? e));
+        setError(documentError(format === 'rtf' ? 'RTF' : 'Word', e));
         setStatus('');
       }
     });
     return () => controller.abort();
-  }, [file, ready, format, macos, horizontalPadding]);
+  }, [file, ready, format, macos, horizontalPadding, retry]);
   useEffect(() => {
     if (!rendered) return;
     const apply = () => {
@@ -389,7 +402,19 @@ export default function WordPreview({
         >
           {!error && <span className="spinner" />}
           {error || status}
-          {error && <button onClick={onText}>尝试文字速览</button>}
+          {error && (
+            <>
+              <button
+                onClick={() => {
+                  parsed.current = null;
+                  setRetry((value) => value + 1);
+                }}
+              >
+                重新加载
+              </button>
+              <button onClick={onText}>尝试文字速览</button>
+            </>
+          )}
         </div>
       )}
       <iframe

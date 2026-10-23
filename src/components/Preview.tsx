@@ -3,6 +3,7 @@ import PreviewToolbar, { PreviewMenu } from './PreviewToolbar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFileSearch, type SearchHit } from './FileSearch';
 import { findText } from '../lib/find';
+import { documentError } from '../lib/document-error';
 import {
   PreviewAdjustmentIndicator,
   TextAppearanceControls,
@@ -575,6 +576,7 @@ function PresentationPreview({ file }: { file: PreviewFile }) {
 
 function PdfPreview({ file, presentation = false }: { file: PreviewFile; presentation?: boolean }) {
   const url = useFileUrl(file);
+  const [retry, setRetry] = useState(0);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(1);
@@ -731,6 +733,11 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
     }
   };
   useEffect(() => {
+    setError('');
+    setDoc(null);
+    setOutline([]);
+    setPage(1);
+    currentPage.current = 1;
     if (!url) return;
     let task: PDFDocumentLoadingTask | undefined;
     let cancelled = false;
@@ -758,14 +765,14 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
           }
         });
       })
-      .catch(() => {
-        if (!cancelled) setError('PDF 加载失败：文件损坏、已加密或当前环境不支持。');
+      .catch((reason) => {
+        if (!cancelled) setError(documentError('PDF', reason));
       });
     return () => {
       cancelled = true;
       void task?.destroy();
     };
-  }, [url]);
+  }, [url, retry]);
   useEffect(() => {
     if (!doc || !scroll.current) return;
     const scroller = scroll.current;
@@ -798,7 +805,7 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
         value={`${Math.round(zoom * 100)}%`}
       />
       {error ? (
-        <ErrorNotice message={error} />
+        <ErrorNotice message={error} onRetry={() => setRetry((value) => value + 1)} />
       ) : (
         <>
           <PreviewToolbar className="content-toolbar pdf-toolbar">
@@ -1489,12 +1496,13 @@ function Loading({ progress, label }: { progress?: number; label?: string } = {}
     </div>
   );
 }
-function ErrorNotice({ message }: { message: string }) {
+function ErrorNotice({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="preview-message">
       <FileQuestion size={36} />
       <h3>暂时无法渲染这个文件</h3>
       <p>{message}</p>
+      {onRetry && <button onClick={onRetry}>重新加载</button>}
     </div>
   );
 }

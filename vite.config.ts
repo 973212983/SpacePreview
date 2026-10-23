@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   resolve: { alias: { buffer: 'buffer/' } },
+  optimizeDeps: {
+    entries: ['index.html'],
+    include: ['pdfjs-dist/legacy/build/pdf.worker.mjs'],
+  },
   build: { target: ['es2021', 'safari15.4'] },
   server: { port: 1420, strictPort: true },
   clearScreen: false,
