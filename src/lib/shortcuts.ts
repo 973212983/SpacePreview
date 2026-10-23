@@ -31,7 +31,7 @@ export function validShortcut(value: unknown): value is Shortcut {
   return (
     Object.hasOwn(keys, s.code) &&
     [s.ctrl, s.alt, s.meta].every((v) => typeof v === 'boolean') &&
-    !(['KeyO', 'KeyC', 'Equal', 'Minus'].includes(s.code) && (s.ctrl || s.meta) && !s.alt)
+    !(['KeyO', 'KeyC', 'KeyF', 'Equal', 'Minus'].includes(s.code) && (s.ctrl || s.meta) && !s.alt)
   );
 }
 
@@ -78,7 +78,11 @@ export function shortcutLabel(s: Shortcut, macos = false): string {
 // Sandboxed document frames cannot bubble keyboard events into the app window.
 // Let the app decide which keys it handles so custom shortcuts and modifiers work too.
 export function forwardPreviewKey(event: KeyboardEvent): void {
-  if ((event.target as HTMLElement | null)?.closest('input,textarea,select,[contenteditable]'))
+  const find = (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'f';
+  if (
+    !find &&
+    (event.target as HTMLElement | null)?.closest('input,textarea,select,[contenteditable]')
+  )
     return;
   const forwarded = new KeyboardEvent(event.type, {
     key: event.key,

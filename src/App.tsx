@@ -20,11 +20,13 @@ import {
   Sun,
   Upload,
   X,
+  Search,
 } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import Preview from './components/Preview';
+import FileSearch from './components/FileSearch';
 import { usePreviewWindow } from './lib/use-preview-window';
 import UnsupportedPreview from './components/UnsupportedPreview';
 import UpdateSettings from './components/UpdateSettings';
@@ -466,7 +468,7 @@ export default function App() {
         const next = shortcutFromEvent(event);
         if (!next) {
           setShortcutError(
-            '使用字母、数字、符号、F1–F12 或 Space，可组合 Ctrl / Alt / ⌘。Shift 保留为纯文本预览；Ctrl / ⌘ + O 用于选择文件，Ctrl / ⌘ + C、加减号保留给复制和字号操作。',
+            '使用字母、数字、符号、F1–F12 或 Space，可组合 Ctrl / Alt / ⌘。Shift 保留为纯文本预览；Ctrl / ⌘ + O 用于选择文件，Ctrl / ⌘ + C、加减号保留给复制和字号操作，Ctrl / ⌘ + F 用于文件检索。',
           );
           return;
         }
@@ -476,6 +478,29 @@ export default function App() {
         return;
       }
       if (event.code === 'Space') trace('dom-space');
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === 'f'
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (file && !settingsOpen) {
+          setMenuOpen(false);
+          window.dispatchEvent(new Event('preview-find'));
+        }
+        return;
+      }
+      if (
+        event.key === 'Escape' &&
+        document.querySelector('.preview-layer:not([hidden]) [data-file-search]')
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.dispatchEvent(new Event('preview-find-close'));
+        return;
+      }
       if (event.key === 'Escape' && menuOpen) {
         event.preventDefault();
         setMenuOpen(false);
@@ -677,6 +702,14 @@ export default function App() {
                       <button
                         onClick={() => {
                           setMenuOpen(false);
+                          window.dispatchEvent(new Event('preview-find'));
+                        }}
+                      >
+                        <Search size={15} /> 文件内检索 <kbd>{macos ? '⌘' : 'Ctrl'}+F</kbd>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
                           void choose();
                         }}
                       >
@@ -806,16 +839,18 @@ export default function App() {
                 <TextAppearanceProvider
                   active={depth === archiveStack.length && !settingsOpen && !recording}
                 >
-                  <Preview
-                    key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
-                    file={item}
-                    mode={depth === archiveStack.length ? mode : 'auto'}
-                    onOpen={(inside) => {
-                      request.current++;
-                      setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
-                      setMode('auto');
-                    }}
-                  />
+                  <FileSearch active={depth === archiveStack.length && !settingsOpen && !recording}>
+                    <Preview
+                      key={`${item.id}:${!item.directory && depth === archiveStack.length ? mode : 'auto'}`}
+                      file={item}
+                      mode={depth === archiveStack.length ? mode : 'auto'}
+                      onOpen={(inside) => {
+                        request.current++;
+                        setArchiveStack((stack) => [...stack.slice(0, depth), inside]);
+                        setMode('auto');
+                      }}
+                    />
+                  </FileSearch>
                 </TextAppearanceProvider>
               </PreviewMenuTarget.Provider>
             </div>
@@ -1167,6 +1202,7 @@ export default function App() {
                   <div className="shortcuts">
                     {[
                       ['选择文件', macos ? '⌘O' : 'Ctrl + O'],
+                      ['文件内检索', macos ? '⌘F' : 'Ctrl + F'],
                       ['关闭预览', `${previewKey} / Esc`],
                       ['纯文本预览', `Shift + ${previewKey}`],
                       ['复制路径', macos ? '⇧⌘C' : 'Ctrl + Shift + C'],

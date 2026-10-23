@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFileSearch, type SearchHit } from './FileSearch';
+import { findText, findRanges, scrollToRange } from '../lib/find';
 import type { PreviewFile } from '../lib/files';
 import { readFullBytes } from '../lib/bridge';
 import { readWordPackage } from '../lib/word-package';
@@ -55,6 +57,58 @@ export default function WordPreview({
     ),
   );
   const [rendered, setRendered] = useState(false);
+  useFileSearch(
+    useMemo(
+      () =>
+        rendered && parsed.current?.file === file
+          ? {
+              scope: 'Word 正文',
+              async search(query: string, signal: AbortSignal) {
+                const children = parsed.current!.doc.documentPart.body.children;
+                const textOf = (node: {
+                  type: string;
+                  text?: string;
+                  children?: typeof children;
+                }): string =>
+                  node.type === 'text'
+                    ? (node.text ?? '')
+                    : (node.children ?? []).map(textOf).join('');
+                const matches: SearchHit[] = [];
+                for (let index = 0; index < children.length; index++) {
+                  signal.throwIfAborted();
+                  if (index % 500 === 499) await new Promise((resolve) => setTimeout(resolve, 0));
+                  if (!findText(textOf(children[index]), query).length) continue;
+                  matches.push({
+                    label: `第 ${index + 1} 段`,
+                    goTo: async (navigationSignal) => {
+                      const target = frame.current?.contentDocument;
+                      if (!target) return;
+                      const selector = `.word-search-block-${index}`;
+                      if (!target.querySelector(selector))
+                        target
+                          .querySelector(`[data-word-section="${Math.floor(index / 200)}"]`)
+                          ?.scrollIntoView({ block: 'start' });
+                      const deadline = performance.now() + 10000;
+                      while (!target.querySelector(selector) && performance.now() < deadline) {
+                        navigationSignal.throwIfAborted();
+                        await new Promise((resolve) => setTimeout(resolve, 50));
+                      }
+                      navigationSignal.throwIfAborted();
+                      const element = target.querySelector(selector);
+                      if (!element) throw new Error('此段落尚未加载，请重试跳转。');
+                      const range = findRanges(element, query)[0];
+                      if (range) scrollToRange(range);
+                      else element.scrollIntoView({ block: 'center' });
+                    },
+                  });
+                }
+                return matches;
+              },
+            }
+          : null,
+      [rendered, file],
+    ),
+  );
   const [activeId, setActiveId] = useState('');
   const [pageCount, setPageCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -153,6 +207,9 @@ export default function WordPreview({
           controller.signal.throwIfAborted();
           const doc = await engine.parseAsync(source.data, options);
           controller.signal.throwIfAborted();
+          doc.documentPart.body.children.forEach((child: { className?: string }, index: number) => {
+            child.className = `${child.className ?? ''} word-search-block-${index}`;
+          });
           parsed.current = { file, doc, source };
         }
         const { source, doc } = parsed.current;

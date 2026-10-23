@@ -1,5 +1,7 @@
 import PreviewToolbar from './PreviewToolbar';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useFileSearch, type SearchHit } from './FileSearch';
+import { findText } from '../lib/find';
 import { ChevronLeft, ChevronRight, Table2 } from 'lucide-react';
 import type { WorkerResult } from '../lib/worker-types';
 import { TextAppearanceControls, useTextAppearance } from './TextAppearance';
@@ -18,6 +20,50 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
   const scroller = useRef<HTMLDivElement>(null);
   const previousHeight = useRef(rowHeight);
   const scrollPosition = useRef(0);
+  useFileSearch(
+    useMemo(
+      () => ({
+        scope: result.sheets ? '工作簿单元格' : '幻灯片正文',
+        async search(query: string, signal: AbortSignal) {
+          const matches: SearchHit[] = [];
+          for (let sheetIndex = 0; sheetIndex < (result.sheets?.length ?? 0); sheetIndex++) {
+            const sheet = result.sheets![sheetIndex];
+            for (let row = 0; row < sheet.rows.length; row++) {
+              signal.throwIfAborted();
+              sheet.rows[row].forEach((cell, col) => {
+                if (!findText(cell, query).length) return;
+                matches.push({
+                  label: `${sheet.name}!${columnName(col)}${row + 1}`,
+                  goTo: async (navigationSignal) => {
+                    setSelected(sheetIndex);
+                    setStart(Math.max(0, row - 3));
+                    await new Promise((resolve) => requestAnimationFrame(resolve));
+                    if (navigationSignal.aborted || !scroller.current) return;
+                    scroller.current.scrollTop = row * rowHeight;
+                    await new Promise((resolve) => requestAnimationFrame(resolve));
+                    if (!navigationSignal.aborted)
+                      scroller.current
+                        ?.querySelector(`[data-search-row="${row}"][data-search-column="${col}"]`)
+                        ?.scrollIntoView({ block: 'center', inline: 'center' });
+                  },
+                });
+              });
+              if (row % 500 === 499) await new Promise((resolve) => setTimeout(resolve, 0));
+            }
+          }
+          result.slides?.forEach((slide, slideIndex) => {
+            if (findText([slide.title, ...slide.paragraphs].join('\n'), query).length)
+              matches.push({
+                label: `第 ${slideIndex + 1} 张`,
+                goTo: () => setSelected(slideIndex),
+              });
+          });
+          return matches;
+        },
+      }),
+      [result, rowHeight],
+    ),
+  );
   useLayoutEffect(() => {
     if (scroller.current && rowHeight !== previousHeight.current) {
       scroller.current.scrollTop = (scrollPosition.current / previousHeight.current) * rowHeight;
@@ -79,7 +125,12 @@ export default function OfficePreview({ result }: { result: WorkerResult }) {
                 <tr key={start + offset}>
                   <th>{start + offset + 1}</th>
                   {Array.from({ length: columns }, (_, col) => (
-                    <td key={col} title={row[col] ?? ''}>
+                    <td
+                      key={col}
+                      title={row[col] ?? ''}
+                      data-search-row={start + offset}
+                      data-search-column={col}
+                    >
                       {row[col] ?? ''}
                     </td>
                   ))}

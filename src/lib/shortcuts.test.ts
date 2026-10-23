@@ -20,7 +20,7 @@ const event = (code: string, mods: Partial<KeyboardEvent> = {}) => ({
 
 describe('preview shortcut configuration', () => {
   it('reserves application copy and zoom shortcuts on Windows and macOS', () => {
-    for (const code of ['KeyO', 'KeyC', 'Equal', 'Minus']) {
+    for (const code of ['KeyO', 'KeyC', 'KeyF', 'Equal', 'Minus']) {
       for (const mods of [{ ctrlKey: true }, { metaKey: true }]) {
         expect(shortcutFromEvent(event(code, mods))).toBeNull();
         expect(

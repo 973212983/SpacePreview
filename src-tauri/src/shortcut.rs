@@ -18,11 +18,11 @@ impl Shortcut {
             serde_json::from_str(include_str!("../../src/lib/shortcut-keys.json"))
                 .map_err(|e| e.to_string())?;
         let key = keys.get(&self.code).ok_or("不支持此按键")?;
-        if ["KeyO", "KeyC", "Equal", "Minus"].contains(&self.code.as_str())
+        if ["KeyO", "KeyC", "KeyF", "Equal", "Minus"].contains(&self.code.as_str())
             && (self.ctrl || self.meta)
             && !self.alt
         {
-            return Err("此快捷键保留给选择文件、复制路径或文字缩放".into());
+            return Err("此快捷键保留给选择文件、复制路径、文件检索或文字缩放".into());
         }
         Ok(key[0]
             | (key[1] << 8)
@@ -77,6 +77,7 @@ mod tests {
             "Unknown",
             "KeyO",
             "KeyC",
+            "KeyF",
             "Equal",
             "Minus",
         ] {
@@ -92,7 +93,7 @@ mod tests {
 
     #[test]
     fn reserves_copy_and_zoom_on_both_platforms_but_allows_alt_combinations() {
-        for code in ["KeyO", "KeyC", "Equal", "Minus"] {
+        for code in ["KeyO", "KeyC", "KeyF", "Equal", "Minus"] {
             for (ctrl, meta) in [(true, false), (false, true)] {
                 let mut shortcut = Shortcut {
                     code: code.into(),

@@ -3,7 +3,7 @@ import { TextAppearanceControls } from './TextAppearance';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { trackReadingPosition } from '../lib/reading-position';
 import DOMPurify from 'dompurify';
-import { List, ChevronLeft, Search } from 'lucide-react';
+import { List, ChevronLeft, Search, X } from 'lucide-react';
 
 export interface OutlineItem {
   id: string;
@@ -71,6 +71,19 @@ export function ReadingLayout({
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                 />
+                {filter && (
+                  <button
+                    type="button"
+                    aria-label="清空目录搜索"
+                    title="清空搜索"
+                    onClick={(event) => {
+                      setFilter('');
+                      event.currentTarget.parentElement?.querySelector('input')?.focus();
+                    }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </label>
             )}
             <nav ref={nav}>

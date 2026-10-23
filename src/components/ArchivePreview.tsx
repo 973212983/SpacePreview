@@ -9,6 +9,8 @@ import { readZipDirectory, readZipEntry, ZIP_ENTRY_LIMIT } from '../lib/zip-rang
 import { parseInWorker } from '../lib/worker-client';
 import type { ArchiveEntry } from '../lib/worker-types';
 import FileIcon from './FileIcon';
+import { useFileSearch } from './FileSearch';
+import { findText } from '../lib/find';
 import { openArchive } from '../lib/archive-session';
 
 function entryReason(entry: ArchiveEntry) {
@@ -35,6 +37,27 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
   const [visible, setVisible] = useState<Record<string, number>>({});
   const [stack, setStack] = useState<PreviewFile[]>([]);
   const [query, setQuery] = useState('');
+  useFileSearch(
+    useMemo(
+      () =>
+        !stack.length && entries
+          ? {
+              scope: '压缩包文件名',
+              search: (keyword: string) =>
+                entries
+                  .filter((entry) => !entry.directory && findText(entry.name, keyword).length)
+                  .map((entry) => ({
+                    label: entry.name,
+                    goTo: () => {
+                      setQuery(entry.name);
+                      setVisible({});
+                    },
+                  })),
+            }
+          : null,
+      [entries, stack.length],
+    ),
+  );
   const [extracting, setExtracting] = useState(false);
   const [selected, setSelected] = useState('');
   const [reload, setReload] = useState(0);

@@ -1,6 +1,8 @@
 import { usePreviewPreferences } from './PreviewPreferences';
 import PreviewToolbar, { PreviewMenu } from './PreviewToolbar';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFileSearch, type SearchHit } from './FileSearch';
+import { findText } from '../lib/find';
 import {
   PreviewAdjustmentIndicator,
   TextAppearanceControls,
@@ -603,6 +605,31 @@ function PdfPreview({ file, presentation = false }: { file: PreviewFile; present
   const [hits, setHits] = useState<{ page: number; snippet: string }[]>([]);
   const [searchNote, setSearchNote] = useState('');
   const [outline, setOutline] = useState<{ title: string; dest: unknown; depth: number }[]>([]);
+  useFileSearch(
+    useMemo(
+      () =>
+        doc
+          ? {
+              scope: 'PDF 全文',
+              async search(query: string, signal: AbortSignal) {
+                const matches: SearchHit[] = [];
+                for (let number = 1; number <= doc.numPages; number++) {
+                  signal.throwIfAborted();
+                  const content = await (await doc.getPage(number)).getTextContent();
+                  signal.throwIfAborted();
+                  const text = content.items
+                    .map((item) => ('str' in item ? item.str : ''))
+                    .join(' ');
+                  if (findText(text, query).length)
+                    matches.push({ label: `第 ${number} 页`, goTo: () => navigate(number) });
+                }
+                return matches;
+              },
+            }
+          : null,
+      [doc],
+    ),
+  );
   useEffect(() => {
     if (!doc || !scroll.current) return;
     // Preserve Windows' normal PDF reading scale; Quick Look fits the full page.
@@ -1245,6 +1272,22 @@ function ParsedPreview({
 
 function BookPreview({ chapters }: { chapters: NonNullable<WorkerResult['chapters']> }) {
   const [index, setIndex] = useState(0);
+  useFileSearch(
+    useMemo(
+      () => ({
+        scope: '电子书正文',
+        search: (query: string) =>
+          chapters.flatMap((chapter, chapterIndex) => {
+            const text =
+              new DOMParser().parseFromString(chapter.html, 'text/html').body.textContent ?? '';
+            return findText(text, query).length
+              ? [{ label: chapter.title, goTo: () => setIndex(chapterIndex) }]
+              : [];
+          }),
+      }),
+      [chapters],
+    ),
+  );
   const chapter = chapters[index];
   return (
     <div className="book-preview">
