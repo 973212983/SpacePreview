@@ -78,13 +78,17 @@
   text-align: left;
   font-size: 13px;
   line-height: 1.5;
-  padding: 8px 12px;
+  padding: 5px 12px;
   border-radius: 6px;
-  margin: 2px 0;
+  margin: 1px 0;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: background 0.15s;
+}
+.reading-outline nav button:active {
+  transform: none;
 }
 .reading-outline nav button:hover {
   background: var(--subtle);
