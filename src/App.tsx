@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -66,6 +66,10 @@ type AgentStatus = {
 const trace = (stage: string) => {
   if (desktop) void invoke('trace_preview', { stage }).catch(() => {});
 };
+function preventWindowButtonFocus(event: MouseEvent<HTMLButtonElement>) {
+  event.preventDefault();
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+}
 function savedSettings(): Settings {
   try {
     const s = JSON.parse(localStorage.getItem('space-settings') || '{}');
@@ -497,15 +501,7 @@ export default function App() {
         void choose();
       }
       if (settingsOpen || (!file && !previewError)) return;
-      if (
-        matchesShortcut(event, shortcut) &&
-        !(
-          shortcut.code === 'Space' &&
-          !event.shiftKey &&
-          event.target instanceof HTMLElement &&
-          event.target.closest('button')
-        )
-      ) {
+      if (matchesShortcut(event, shortcut)) {
         event.preventDefault();
         event.stopPropagation();
         if (event.repeat) return;
@@ -767,6 +763,7 @@ export default function App() {
               <button
                 className="icon-button"
                 title="最小化"
+                onMouseDown={preventWindowButtonFocus}
                 onClick={() => void getCurrentWindow().minimize()}
               >
                 <Minus size={18} />
@@ -775,6 +772,7 @@ export default function App() {
                 className="icon-button"
                 title={maximized ? '恢复窗口' : '最大化'}
                 aria-label={maximized ? '恢复窗口' : '最大化'}
+                onMouseDown={preventWindowButtonFocus}
                 onClick={() => void toggleMaximize()}
               >
                 {maximized ? <Copy size={15} /> : <Square size={15} />}
@@ -785,6 +783,7 @@ export default function App() {
             <button
               className="icon-button close-button"
               title={file || previewError ? '关闭预览 · Esc' : '隐藏窗口'}
+              onMouseDown={preventWindowButtonFocus}
               onClick={closePreview}
             >
               <X size={18} />
