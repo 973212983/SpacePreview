@@ -482,11 +482,22 @@ h2 {
   color: #718097;
   overflow-wrap: anywhere;
 }
-.footnote {
-  font-size: 11px;
-  line-height: 1.9;
-  color: #8592a4;
-  margin-top: 18px;
+.format-boundaries {
+  margin-top: 22px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.95;
+}
+.format-boundaries ul {
+  padding-left: 20px;
+  margin-block: 12px;
+}
+.format-boundaries li + li {
+  margin-top: 8px;
+}
+.format-boundaries strong {
+  color: #3d506c;
+  font-weight: 600;
 }
 .workflow {
   display: grid;
