@@ -253,7 +253,10 @@ export default function WordPreview({
             children: count > 1 ? children.slice(index * 200, (index + 1) * 200) : children,
           };
           // The outline is limited to mounted content; never rescan the full manuscript.
-          if (count === 1) headings.push(...buildWordOutline(body, doc.stylesPart?.styles ?? []));
+          if (count === 1) {
+            headings.push(...buildWordOutline(body, doc.stylesPart?.styles ?? []));
+            setOutline(headings);
+          }
           const renderDoc = Object.assign(Object.create(Object.getPrototypeOf(doc)), doc, {
             _package: Object.assign(
               Object.create(Object.getPrototypeOf(doc._package)),
@@ -359,6 +362,7 @@ export default function WordPreview({
   }, [zoom, rendered, outline, horizontalPadding]);
   return (
     <ReadingLayout
+      loading={!rendered && !error}
       outline={outline}
       activeId={activeId}
       onNavigate={(id) =>

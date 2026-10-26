@@ -1,3 +1,4 @@
+import { usePreviewPreferences } from './PreviewPreferences';
 import PreviewToolbar from './PreviewToolbar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, ArrowLeft, Search, FolderOpen } from 'lucide-react';
@@ -13,7 +14,8 @@ import { useFileSearch } from './FileSearch';
 import { findText } from '../lib/find';
 import { openArchive } from '../lib/archive-session';
 
-function entryReason(entry: ArchiveEntry) {
+function entryReason(entry: ArchiveEntry, maxMiB: number) {
+  if (!entry.directory && entry.size > maxMiB * 1024 * 1024) return `超过预览上限 ${maxMiB} MB`;
   return entry.directory
     ? ''
     : entry.encrypted
@@ -30,6 +32,7 @@ function entryReason(entry: ArchiveEntry) {
 }
 
 export default function ArchivePreview({ file }: { file: PreviewFile }) {
+  const { preferences } = usePreviewPreferences();
   const [entries, setEntries] = useState<ArchiveEntry[] | null>(null);
   const [error, setError] = useState('');
   const [entryError, setEntryError] = useState('');
@@ -149,7 +152,7 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
       return next;
     });
   const openEntry = async (entry: ArchiveEntry) => {
-    if (entry.directory || entryReason(entry)) return;
+    if (entry.directory || entryReason(entry, preferences.maxPreviewMiB)) return;
     setSelected(`file:${entry.index}:${entry.name}`);
     setStack([]);
     extraction.current?.abort();
@@ -227,7 +230,7 @@ export default function ArchivePreview({ file }: { file: PreviewFile }) {
     return (
       <>
         {children.slice(0, limit).map((node) => {
-          const reason = node.entry ? entryReason(node.entry) : '';
+          const reason = node.entry ? entryReason(node.entry, preferences.maxPreviewMiB) : '';
           return (
             <div
               key={node.id}

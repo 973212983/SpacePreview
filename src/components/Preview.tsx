@@ -1,3 +1,4 @@
+import FoldableCode from './FoldableCode';
 import { usePreviewPreferences } from './PreviewPreferences';
 import PreviewToolbar, { PreviewMenu } from './PreviewToolbar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -52,7 +53,7 @@ import { parseInWorker } from '../lib/worker-client';
 import type { WorkerResult } from '../lib/worker-types';
 import type { WorkerRequest } from '../lib/worker-types';
 import OfficePreview from './OfficePreview';
-import DocumentReader from './DocumentReader';
+import DocumentReader, { ReadingLayout } from './DocumentReader';
 import WordPreview from './WordPreview';
 import PdfPage from './PdfPage';
 import { trackReadingPosition } from '../lib/reading-position';
@@ -110,8 +111,10 @@ export default function Preview({
   const [wordText, setWordText] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const { preferences } = usePreviewPreferences();
+  const tooLarge = file.size > preferences.maxPreviewMiB * 1024 * 1024;
   useEffect(() => {
-    if (file.directory || mode !== 'auto' || (registered !== 'binary' && !ambiguous)) return;
+    if (tooLarge || file.directory || mode !== 'auto' || (registered !== 'binary' && !ambiguous))
+      return;
     let active = true;
     readBytes(file, 16384)
       .then((bytes) => {
@@ -136,7 +139,7 @@ export default function Preview({
     return () => {
       active = false;
     };
-  }, [file, mode, registered, ambiguous]);
+  }, [file, mode, registered, ambiguous, tooLarge]);
   const kind =
     mode === 'info'
       ? 'binary'
@@ -148,6 +151,16 @@ export default function Preview({
           ? detected
           : registered;
   if (file.directory) return <DirectoryPreview key={file.id} file={file} mode={mode} />;
+  if (tooLarge && mode !== 'info' && !showInfo)
+    return (
+      <UnsupportedPreview
+        file={file}
+        title="文件超过预览上限"
+        message={`文件大小 ${formatSize(file.size)}，当前上限 ${preferences.maxPreviewMiB} MB。可在偏好设置中调整。`}
+        onInfo={() => setShowInfo(true)}
+      />
+    );
+  if (tooLarge && showInfo) return <BinaryPreview file={file} />;
   if (!kind) return <Loading />;
   if (kind === 'binary' && mode === 'auto' && !showInfo)
     return (
@@ -1119,7 +1132,23 @@ function ParsedPreview({
   }, [file, kind, limit, container, encoding, retry]);
   if (error && !result) return <ErrorNotice message={error} />;
   if (binary) return <BinaryPreview file={file} textFallback />;
-  if (!result) return <Loading progress={progress} />;
+  if (!result)
+    return [
+      'markdown',
+      'docx',
+      'odt',
+      'html',
+      'fb2',
+      'notebook',
+      'asciidoc',
+      'legacy-doc',
+    ].includes(kind) ? (
+      <ReadingLayout outline={[]} loading onNavigate={() => {}}>
+        <Loading progress={progress} />
+      </ReadingLayout>
+    ) : (
+      <Loading progress={progress} />
+    );
   const loadingStatus = (backgroundLoading || error) && (
     <div className="progressive-status" role={error ? 'alert' : 'status'}>
       {!error && <span className="spinner" />}
@@ -1186,6 +1215,7 @@ function ParsedPreview({
       <>
         {loadingStatus}
         <DocumentReader
+          loading={backgroundLoading}
           html={result.html ?? ''}
           toolbar={
             <>
@@ -1215,7 +1245,6 @@ function ParsedPreview({
     );
   }
   const continuous = file.size > 512 * 1024 || (result.lines ?? 0) > 5000;
-  const lines = continuous ? [] : (result.html ?? '').split('\n');
   const matching = new Set<number>();
   if (query)
     (result.text ?? '').split('\n').forEach((line, i) => {
@@ -1263,14 +1292,12 @@ function ParsedPreview({
             />
           </pre>
         ) : (
-          <pre>
-            {lines.map((line, i) => (
-              <div className={`code-line ${query && matching.has(i) ? 'matched' : ''}`} key={i}>
-                <span className="line-number">{i + 1}</span>
-                <code dangerouslySetInnerHTML={{ __html: line || ' ' }} />
-              </div>
-            ))}
-          </pre>
+          <FoldableCode
+            html={result.html ?? ''}
+            text={result.text ?? ''}
+            language={result.language ?? sourceLanguage(file.name)}
+            query={query}
+          />
         )}
       </div>
     </div>

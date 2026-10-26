@@ -16,6 +16,7 @@ export type PreviewPreferences = {
   wrap: boolean;
   encoding: TextEncoding;
   html: 'source' | 'web';
+  maxPreviewMiB: number;
 };
 export function parsePreviewPreferences(raw: string | null): PreviewPreferences {
   let value: Partial<PreviewPreferences> = {};
@@ -25,6 +26,12 @@ export function parsePreviewPreferences(raw: string | null): PreviewPreferences 
     /* Use defaults for damaged settings. */
   }
   return {
+    maxPreviewMiB:
+      Number.isInteger(value.maxPreviewMiB) &&
+      value.maxPreviewMiB! >= 16 &&
+      value.maxPreviewMiB! <= 1024
+        ? value.maxPreviewMiB!
+        : 256,
     font: ['auto', 'sans', 'serif', 'mono'].includes(value.font ?? '') ? value.font! : 'auto',
     size:
       typeof value.size === 'number' &&

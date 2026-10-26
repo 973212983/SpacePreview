@@ -44,6 +44,26 @@ export default function PreviewPreferencesSettings() {
   return (
     <>
       <p className="page-intro">设置自动保存，并应用到所有文件。</p>
+      <h3>资源与性能</h3>
+      <div className="preference-group">
+        <label className="preference-row">
+          <span>单个文件预览上限</span>
+          <select
+            aria-label="文件预览大小上限"
+            value={preferences.maxPreviewMiB}
+            onChange={(e) => update('maxPreviewMiB', Number(e.target.value))}
+          >
+            {[16, 32, 64, 128, 256, 512, 1024].map((size) => (
+              <option key={size} value={size}>
+                {size} MB
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="shortcut-help">
+        超限文件只显示提示，可用默认应用打开。解析后的内存占用可能大于文件大小。
+      </p>
       <h3>文本阅读</h3>
       <div className="preference-group">
         <label className="preference-row">

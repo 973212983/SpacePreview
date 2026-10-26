@@ -2296,6 +2296,10 @@ button:disabled:hover {
   color: var(--text);
 }
 .file-search-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
   height: 100%;
   min-height: 0;
   position: relative;
@@ -3723,4 +3727,23 @@ button:disabled:hover {
     gap: 8px;
     padding: 9px 8px;
   }
+}
+
+.fold-gutter {
+  display: inline-block;
+  flex: 0 0 18px;
+  width: 18px;
+  user-select: none;
+}
+.fold-gutter button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+.fold-summary {
+  color: var(--muted);
+  user-select: none;
 }

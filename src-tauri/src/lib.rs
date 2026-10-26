@@ -286,6 +286,51 @@ async fn read_range(
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+// Resources stay inside the selected HTML's directory, including through symlinks.
+fn html_resource_path(source: &Path, relative: &str) -> Result<PathBuf, String> {
+    let root = source.parent().ok_or("HTML 所在目录无效")?;
+    let path = root
+        .join(relative)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+    if Path::new(relative).is_absolute() || !path.starts_with(root) {
+        return Err("资源必须位于 HTML 所在目录内".into());
+    }
+    let extension = path
+        .extension()
+        .and_then(|v| v.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if ![
+        "css", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "woff", "woff2", "ttf", "otf",
+    ]
+    .contains(&extension.as_str())
+    {
+        return Err("不支持此资源类型".into());
+    }
+    Ok(path)
+}
+
+#[tauri::command]
+async fn read_html_resource(
+    path: String,
+    relative: String,
+    state: State<'_, PreviewState>,
+) -> Result<tauri::ipc::Response, String> {
+    let source = authorized(&path, &state)?;
+    let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
+        let resource = html_resource_path(&source, &relative)?;
+        let bytes = read_bounded(&resource, 8 * 1024 * 1024 + 1)?;
+        if bytes.len() > 8 * 1024 * 1024 {
+            return Err("资源超过 8 MB 上限".into());
+        }
+        Ok(bytes)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 fn read_at(path: &Path, offset: u64, limit: usize) -> Result<Vec<u8>, String> {
     if limit > MAX_READ {
         return Err("读取超过 32 MB 上限。".into());
@@ -535,6 +580,7 @@ pub fn run() {
             render_presentation,
             read_prefix,
             read_range,
+            read_html_resource,
             list_siblings,
             list_directory,
             open_default,
@@ -680,6 +726,28 @@ mod tests {
             .chain(second.entries.iter())
             .all(|entry| entry.name != "deep"));
         assert!(read_bounded(&root, 8).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn html_assets_cannot_escape_selected_directory() {
+        let root = std::env::temp_dir().join(format!("spacepreview-html-{}", std::process::id()));
+        fs::create_dir_all(root.join("css")).unwrap();
+        fs::write(root.join("index.html"), b"html").unwrap();
+        fs::write(root.join("css/main.css"), b"body{}").unwrap();
+        fs::write(root.join("private.txt"), b"secret").unwrap();
+        let root = fs::canonicalize(root).unwrap();
+        let source = root.join("index.html");
+        assert_eq!(
+            html_resource_path(&source, "css/main.css").unwrap(),
+            root.join("css/main.css")
+        );
+        assert!(html_resource_path(&source, "private.txt").is_err());
+        assert!(html_resource_path(&source, source.to_str().unwrap()).is_err());
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink("/etc", root.join("outside")).unwrap();
+            assert!(html_resource_path(&source, "outside/passwd").is_err());
+        }
         fs::remove_dir_all(root).unwrap();
     }
 }

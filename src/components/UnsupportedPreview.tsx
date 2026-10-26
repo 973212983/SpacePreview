@@ -5,10 +5,12 @@ import { openDefault } from '../lib/bridge';
 
 export default function UnsupportedPreview({
   file,
+  title = '暂不支持预览此项目',
   message,
   onInfo,
 }: {
   file?: PreviewFile;
+  title?: string;
   message: string;
   onInfo?: () => void;
 }) {
@@ -16,7 +18,7 @@ export default function UnsupportedPreview({
   return (
     <div className="preview-message unsupported-preview" role="alert">
       <FileQuestion size={52} strokeWidth={1.3} />
-      <h2>暂不支持预览此项目</h2>
+      <h2>{title}</h2>
       {file && (
         <strong className="unsupported-name" title={file.path ?? file.name}>
           {file.name}

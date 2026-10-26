@@ -16,12 +16,14 @@ export function ReadingLayout({
   children,
   toolbar,
   activeId,
+  loading = false,
 }: {
   outline: OutlineItem[];
   onNavigate: (id: string) => void;
   children: React.ReactNode;
   toolbar?: React.ReactNode;
   activeId?: string;
+  loading?: boolean;
 }) {
   const [open, setOpen] = useState(() => !/Mac/i.test(navigator.platform));
   const [active, setActive] = useState('');
@@ -30,7 +32,7 @@ export function ReadingLayout({
   const nav = useRef<HTMLElement>(null);
   const drag = useRef<{ x: number; width: number } | null>(null);
   const current = activeId ?? active;
-  const showOutline = open && outline.length > 0;
+  const showOutline = open && (outline.length > 0 || loading);
   useEffect(() => {
     const button = nav.current?.querySelector<HTMLElement>('[aria-current="location"]');
     if (!button || !nav.current) return;
@@ -44,7 +46,7 @@ export function ReadingLayout({
       <PreviewToolbar className="reading-tools">
         <button
           className={showOutline ? 'selected' : ''}
-          disabled={!outline.length}
+          disabled={!outline.length && !loading}
           title="切换文档大纲"
           aria-expanded={showOutline}
           onClick={() => setOpen((v) => !v)}
@@ -85,6 +87,11 @@ export function ReadingLayout({
                   </button>
                 )}
               </label>
+            )}
+            {loading && !outline.length && (
+              <p className="outline-empty" role="status">
+                正在读取大纲…
+              </p>
             )}
             <nav ref={nav}>
               {outline
@@ -161,10 +168,12 @@ export function ReadingLayout({
 
 export default function DocumentReader({
   html,
+  loading = false,
   note,
   toolbar,
 }: {
   html: string;
+  loading?: boolean;
   note?: string;
   toolbar?: React.ReactNode;
 }) {
@@ -232,6 +241,7 @@ export default function DocumentReader({
   }, [document]);
   return (
     <ReadingLayout
+      loading={loading}
       outline={document.outline}
       activeId={activeId}
       onNavigate={(id) =>

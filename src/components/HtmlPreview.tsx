@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+import { htmlResources } from '../lib/html-resources';
 import PreviewToolbar from './PreviewToolbar';
 import { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
@@ -41,6 +43,12 @@ export default function HtmlPreview({ file }: { file: PreviewFile }) {
   useEffect(applyAppearance, [size, font, html, reading]);
   useEffect(() => {
     const controller = new AbortController();
+    const resources = htmlResources(async (relative) => {
+      if (!file.path) throw new Error('浏览器无法读取相邻文件');
+      return new Uint8Array(
+        await invoke<ArrayBuffer>('read_html_resource', { path: file.path, relative }),
+      );
+    }, controller.signal);
     let active = true;
     setHtml('');
     setError('');
@@ -52,7 +60,7 @@ export default function HtmlPreview({ file }: { file: PreviewFile }) {
       const decoded = decodeHtml(bytes, 'auto', !complete);
       const safe = DOMPurify.sanitize(decoded.text, {
         WHOLE_DOCUMENT: true,
-        ADD_TAGS: ['style'],
+        ADD_TAGS: ['style', 'link'],
         FORBID_TAGS: [
           'script',
           'iframe',
@@ -60,20 +68,32 @@ export default function HtmlPreview({ file }: { file: PreviewFile }) {
           'embed',
           'base',
           'meta',
-          'link',
           'form',
           'audio',
           'video',
         ],
       });
       const doc = new DOMParser().parseFromString(safe, 'text/html');
+      for (const node of doc.querySelectorAll('link')) {
+        const style = doc.createElement('style');
+        if (node.rel === 'stylesheet')
+          style.textContent = await resources.stylesheet(node.getAttribute('href') || '');
+        node.replaceWith(style);
+      }
+      for (const node of doc.querySelectorAll('style'))
+        node.textContent = await resources.css(node.textContent || '');
+      for (const node of doc.querySelectorAll('[style]'))
+        node.setAttribute('style', await resources.css(node.getAttribute('style') || ''));
       doc.querySelectorAll('[href]').forEach((node) => {
         if (!node.getAttribute('href')?.startsWith('#')) node.removeAttribute('href');
       });
-      doc.querySelectorAll('[src]').forEach((node) => {
-        if (!/^data:image\/(png|jpeg|gif|webp);base64,/i.test(node.getAttribute('src') || ''))
-          node.removeAttribute('src');
-      });
+      for (const node of doc.querySelectorAll('[src]')) {
+        const value =
+          node.tagName === 'IMG' ? await resources.image(node.getAttribute('src') || '') : '';
+        if (value) node.setAttribute('src', value);
+        else node.removeAttribute('src');
+      }
+      controller.signal.throwIfAborted();
       doc.querySelectorAll('[srcset]').forEach((node) => node.removeAttribute('srcset'));
       doc.querySelectorAll<HTMLInputElement>('input,textarea,select,button').forEach((node) => {
         node.disabled = true;
@@ -122,7 +142,7 @@ export default function HtmlPreview({ file }: { file: PreviewFile }) {
   const tools = (
     <>
       <span className="reading-label">HTML · {encoding}</span>
-      <button title="不执行脚本或加载外部资源" onClick={() => setReading(!reading)}>
+      <button title="加载同目录资源，不执行脚本或加载网络资源" onClick={() => setReading(!reading)}>
         {reading ? '网页预览' : '阅读模式'}
       </button>
     </>
@@ -136,7 +156,7 @@ export default function HtmlPreview({ file }: { file: PreviewFile }) {
     return (
       <>
         {status}
-        <DocumentReader html={html} toolbar={tools} />
+        <DocumentReader html={html} loading={loading} toolbar={tools} />
       </>
     );
   return (
