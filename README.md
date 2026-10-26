@@ -1,162 +1,212 @@
-<div align="center">
+<h1 align="center">瞬览 SpacePreview</h1>
 
-<img src="public/app-icon.svg" alt="瞬览图标" width="88" height="88" />
+<p align="center"><strong>不必打开，看一眼就好。</strong></p>
 
-# 瞬览 · SpacePreview
+<p align="center">
+  简体中文
+</p>
 
-**不必打开，看一眼就好。**
+<p align="center">
+  <a href="https://github.com/likehao19/SpacePreview/releases/latest"><img src="https://img.shields.io/github/v/release/likehao19/SpacePreview?display_name=tag&sort=semver" alt="最新版本" /></a>
+  <a href="https://github.com/likehao19/SpacePreview/actions/workflows/release.yml"><img src="https://github.com/likehao19/SpacePreview/actions/workflows/release.yml/badge.svg" alt="构建状态" /></a>
+  <a href="https://github.com/likehao19/SpacePreview/releases"><img src="https://img.shields.io/github/downloads/likehao19/SpacePreview/total" alt="下载量" /></a>
+  <a href="https://github.com/likehao19/SpacePreview/stargazers"><img src="https://img.shields.io/github/stars/likehao19/SpacePreview?style=flat&logo=github" alt="GitHub Stars" /></a>
+  <a href="#开源协议"><img src="https://img.shields.io/badge/license-not%20specified-lightgrey" alt="尚未指定开源协议" /></a>
+</p>
 
-一款本地文件预览器。选中文件，轻按空格，查看文档、图片、代码与压缩包。
+<p align="center">
+  <a href="https://spacepreview.likh.cn/">官方网站</a> ·
+  <a href="https://github.com/likehao19/SpacePreview/releases/latest">下载</a> ·
+  <a href="https://github.com/likehao19/SpacePreview/issues">问题反馈</a>
+</p>
 
-[![Release](https://img.shields.io/github/v/release/likehao19/SpacePreview?label=release&color=176b55)](https://github.com/likehao19/SpacePreview/releases/latest)
-![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-567461)
-![Stack](https://img.shields.io/badge/built%20with-Tauri%202%20%2B%20Rust-647c6a)
-[![LinuxDo](https://img.shields.io/badge/community-LinuxDo-d4a75b)](https://linux.do/)
+<p align="center">
+  <img src="website/assets/preview-archive.png" alt="瞬览浏览 ZIP 目录并预览内部图片" width="1000" />
+</p>
 
-[下载软件](https://github.com/likehao19/SpacePreview/releases/latest) · [官网源码](website/) · [版本说明](RELEASE-NOTES.md) · [问题反馈](https://github.com/likehao19/SpacePreview/issues) · [LinuxDo 社区](https://linux.do/)
+## 保留查看节奏，减少反复打开
 
-</div>
+SpacePreview 是一款本地文件预览器。在 Windows 资源管理器、桌面或 macOS Finder 中选中文件，按下空格即可查看，再按一次返回。文档、图片、代码、表格与压缩包集中在一个预览窗口中，临时查看不必反复启动完整编辑软件。
 
-## 从文件列表，直接到内容
+- **本地优先**：不上传文件内容，以只读方式预览，不修改原文件。
+- **快速查看**：PDF 按可见页绘制，ZIP 按需读取，切换或关闭预览时取消旧任务。
+- **多类内容**：覆盖常见文档、图像、代码、压缩包，以及部分专业格式；不同格式的能力与限制有所区别。
+- **多系统使用**：Windows、macOS、Linux 均提供安装包；Linux 通过拖入文件或 `Ctrl+O` 预览，暂不支持文件管理器空格唤起。
 
-瞬览把临时查看文件变成一个简单的动作。在 Windows 资源管理器、桌面或 macOS Finder 中选中文件，按下 `Space` 预览，看完再按一次即可返回。Linux 当前支持拖入文件和 `Ctrl+O`，尚未接入文件管理器空格唤起。
+## 两种查看方式
 
-- **本地只读**：不修改原文件，不上传文件内容。
-- **多格式预览**：文档、图片、代码、表格、压缩包、音视频与部分专业格式，共用一个预览窗口。
-- **专注阅读**：大纲、搜索、缩放、字体与字号调整，工具集中在「更多」菜单。
-- **按需处理**：PDF 可见页与邻近页绘制，ZIP 按需读取目录和条目；切换或关闭时取消旧解析任务。
-- **顺手使用**：同目录文件切换、自定义预览快捷键、明暗主题、可选开机自启动与应用内更新。
+<table>
+  <tr>
+    <td width="50%"><img src="website/assets/preview-word.png" alt="瞬览 Word 页面与文档大纲" /></td>
+    <td width="50%"><img src="website/assets/preview-code.png" alt="瞬览 JSON 代码高亮与折叠" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>页面预览与阅读导航</strong><br />查看文档页面、图片与表格，通过大纲找到需要的章节。</td>
+    <td align="center"><strong>源码查看与结构折叠</strong><br />直接查看代码、配置与文本，使用语法高亮、搜索和按条件启用的代码折叠。</td>
+  </tr>
+</table>
 
-当前源码版本为 **v0.10.14**；已发布安装包以 [GitHub Releases](https://github.com/likehao19/SpacePreview/releases) 为准。最新改动包括 JSON/XML 等代码折叠、单文件大小上限、HTML 本地静态资源预览与 Word 大纲显示优化，详见 [版本说明](RELEASE-NOTES.md)。
+## SpacePreview 能做什么
 
-## 能预览什么
+### 文档与阅读
 
-| 内容         | 代表格式                                 | 预览方式                                                       |
-| ------------ | ---------------------------------------- | -------------------------------------------------------------- |
-| 文档与电子书 | PDF、DOCX、RTF、Markdown、EPUB、FB2      | 页面或阅读视图、大纲、搜索；能力因格式而异                     |
-| 图片与设计   | PNG、JPEG、SVG、TIFF、PSD/PSB、HEIC 等   | 缩放、旋转；部分设计文件读取内置预览图                         |
-| 代码与网页   | TypeScript、JSON、XML、HTML、配置文件    | 语法高亮、搜索、代码折叠、网页 / 阅读 / 源码切换               |
-| 表格与数据库 | XLSX、XLS、CSV、TSV、ODS、SQLite         | 多工作表、虚拟滚动或记录分页；不执行宏、不重算公式             |
-| 演示文稿     | PPTX、PPTM、PPT 等                       | Windows 本地借助 PowerPoint 生成静态页面；其他情况提供文字速览 |
-| 压缩包与容器 | ZIP、7Z、RAR、TAR、ASAR 等               | 目录浏览、筛选、内部支持文件继续预览                           |
-| CAD 与三维   | DXF、STL、OBJ、GLB、STEP 等              | 二维图纸或三维模型交互查看，支持范围因引擎而异                 |
-| 媒体与更多   | 音视频、字体、EML/MSG、Mermaid、Graphviz | 本地播放、字体试排、邮件阅读与图表绘制                         |
-| 未支持的格式 | 二进制文件及其他专有格式                 | 文件信息、内容签名与字节预览                                   |
+- PDF 连续滚动、缩放、文字选择与复制、搜索和内置目录；扫描图片 PDF 暂无 OCR。
+- Word 页面、图片、表格与标题大纲，可切换文字速览；复杂排版可能与 Word 不同，旧 DOC 仅文字速览。
+- Markdown 大纲、任务列表、表格与代码高亮，以及 RTF、OpenDocument、EPUB、FB2 内容阅读。
+- PowerPoint 在 Windows 本地安装并激活 Microsoft PowerPoint 时生成静态页面；其他情况提供文字速览，不播放演示动画。
 
-完整能力、文件大小限制与实测状态见 [格式对照清单](docs/FORMAT_PARITY.md) 和 [预览使用指南](docs/PREVIEW-GUIDE.md)。支持某个扩展名不代表完整还原其所有特性；Office 复杂排版、公式、缺失字体及部分图像变体可能存在差异。
+### 代码与专业内容
 
-## 下载与安装
+- 文本与代码的语法高亮、全文搜索、编码切换和字号调整；JSON/XML 等结构化代码在大小与行数限制内支持折叠。
+- 本地 HTML 网页、阅读和源码切换，可加载预算内同目录及子目录静态资源，不执行脚本。
+- DXF 图纸及 STL、OBJ、GLB、STEP 等三维几何查看；不等于完整 CAD 编辑或所有版本兼容。
+- 通过独立引擎查看部分专业图像、SQLite、字体、邮件、图表和动画；RAW 等变体及设计文件预览图存在兼容边界。
 
-从 **[最新发布页](https://github.com/likehao19/SpacePreview/releases/latest)** 选择对应系统与架构的安装包。
+### 目录与内容浏览
 
-| 系统            | 架构                  | 安装包                  |
-| --------------- | --------------------- | ----------------------- |
-| Windows 10 / 11 | x64                   | `windows-x64-setup.exe` |
-| macOS           | Apple Silicon / ARM64 | `macos-arm64.dmg`       |
-| macOS           | Intel / x64           | `macos-x64.dmg`         |
-| Linux           | x64                   | `.AppImage` 或 `.deb`   |
+- 展开文件夹目录层级，选择支持的内部文件继续预览。
+- 浏览 ZIP、TAR、7Z、RAR 等归档目录和内部支持的内容，不必先完整解压。
+- 表格支持多工作表或虚拟滚动，SQLite 记录分页浏览；不执行宏、不重新计算公式。
+- 同目录文件切换、拖入文件与文件选择器，减少反复进入和返回的操作。
 
-以上为发布文件名中的平台后缀，完整名称包含 `SpacePreview` 与版本号。旧版与更新记录见 [全部发布](https://github.com/likehao19/SpacePreview/releases)。
+### 外观与使用习惯
+
+- 亮色、暗色和跟随系统的界面外观，阅读字体、字号和页面缩放。
+- Windows / macOS 分别保存预览快捷键，可重置为默认空格键。
+- 可选开机自启动、失去焦点时关闭，以及托盘或菜单栏驻留。
+- 应用内检查更新；Linux AppImage 支持应用内更新，DEB 通过下载新包升级。
+
+完整格式与大小限制见 [预览使用指南](docs/PREVIEW-GUIDE.md)、[格式清单](docs/FORMAT_PARITY.md) 和 [格式核对记录](docs/WEBSITE-FORMAT-AUDIT.md)。已接入不等于所有变体均实测；本轮格式样本验证在 Windows Edge 中完成，macOS / Linux 仍需实机验收。
+
+## 下载
+
+| 平台 | 安装包 | 架构 |
+| --- | --- | --- |
+| Windows | [下载安装程序](https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-windows-x64-setup.exe) | x64 |
+| macOS | [下载 Apple 芯片版](https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-arm64.dmg) | ARM64 |
+| macOS | [下载 Intel 版](https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-x64.dmg) | x86_64 |
+| Linux | [AppImage](https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.AppImage) · [DEB](https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.deb) | x86_64 |
+
+以上为 v0.10.14 的直接下载地址。[官方网站](https://spacepreview.likh.cn/) 可自动获取最新发布版本；更新说明和历史版本也可在 [GitHub Releases](https://github.com/likehao19/SpacePreview/releases) 查看。
+
+## 安装
 
 ### Windows
 
-运行安装包后启动瞬览。在资源管理器或桌面选中文件，按 `Space` 即可预览。需要 Microsoft Edge WebView2 Runtime；关闭预览后应用驻留托盘，右键托盘图标可退出。开机自启动默认关闭，可在偏好设置中开启。
+下载 `SpacePreview-0.10.14-windows-x64-setup.exe` 并按照安装程序提示操作。当前 Windows 版本支持 Windows 10 / 11 x64，需要 Microsoft Edge WebView2 Runtime。
+
+启动后在资源管理器或桌面选中文件，按 `Space` 即可预览。关闭窗口后应用驻留托盘，右键托盘图标可退出。
 
 ### macOS
 
-打开对应架构的 DMG，将应用拖入「应用程序」。首次使用 Finder 快捷键需授予辅助功能与 Finder 自动化权限。
+根据 Mac 处理器下载对应 DMG，打开后将 **SpacePreview** 拖入 **应用程序** 文件夹。
 
-当前安装包使用临时签名，尚未进行 Apple Developer ID 签名和公证；原生 Finder 行为及新增预览引擎仍需 Mac 真机验收。权限设置、构建与验收说明见 [MACOS.md](MACOS.md)。
+安装包采用临时签名，尚未进行 Apple Developer ID 签名和公证。如果首次启动被 Gatekeeper 拦截，可在 **系统设置 → 隐私与安全性** 中检查是否提供 **仍要打开** 入口。
+
+Finder 空格预览需要授予辅助功能与 Finder 自动化权限。完整权限、构建与验收步骤见 [MACOS.md](MACOS.md)。
 
 ### Linux
 
-Debian / Ubuntu 系选择 `.deb`，其他适配的发行版可选择 AppImage。AppImage 需先授予执行权限：
+运行 `uname -m` 检查架构，当前提供 `x86_64` 安装包。
 
-```sh
-chmod +x SpacePreview-*.AppImage
-# 然后运行下载的 AppImage，或在文件管理器中双击。
+- Debian / Ubuntu 系发行版可选择 **DEB**。
+- 其他适配的发行版可选择 **AppImage**，首次使用前授予执行权限。
+
+```bash
+# AppImage
+chmod +x SpacePreview-0.10.14-linux-x64.AppImage
+./SpacePreview-0.10.14-linux-x64.AppImage
+
+# Debian 系
+sudo apt install ./SpacePreview-0.10.14-linux-x64.deb
 ```
 
-通过拖入文件或 `Ctrl+O` 预览。尚未接入文件管理器空格唤起；AppImage 支持应用内更新，`.deb` 用户需下载新安装包升级。
+Linux 当前通过拖入文件或 `Ctrl+O` 预览，暂不支持文件管理器空格唤起。未提供 RPM 或 ARM64 安装包。
 
-## 快速上手
+## 常用快捷键
 
-1. 启动瞬览，Windows / macOS 在文件管理器中选中文件，按 `Space`。
-2. 使用 `←` / `→` 切换文件，在「更多」菜单中搜索、缩放或调整阅读设置。
-3. 再按 `Space` 或 `Esc` 关闭预览，回到原来的工作。
+| 功能 | Windows | macOS |
+| --- | --- | --- |
+| 唤起 / 关闭预览 | `Space` | `Space` |
+| 关闭菜单、设置或预览 | `Esc` | `Esc` |
+| 请求 / 切换纯文本预览 | `Shift+Space` | `Shift+Space` |
+| 上一个 / 下一个文件 | `←` / `→` | `←` / `→` |
+| 选择文件 | `Ctrl+O` | `⌘O` |
+| 复制路径 | `Ctrl+Shift+C` | `⌘⇧C` |
+| 调整字号或页面缩放 | `Ctrl++` / `Ctrl+-` | `⌘+` / `⌘-` |
+| 使用滚轮调整字号或页面缩放 | `Ctrl+滚轮` | `⌘+滚轮` |
+| 使用默认应用打开 | `Enter` | `Enter` |
 
-也可直接拖入文件，或使用 `Ctrl / ⌘ + O`。Windows / macOS 可分别保存自定义预览键；文件夹、Everything 与第三方文件管理器尚未接入。
+预览键可在 **偏好设置 → 快捷键** 中修改。输入框、媒体控件与聚焦按钮保留各自的按键行为。复制路径对浏览器文件和压缩包内部文件仅复制文件名；默认打开不执行程序或脚本。完整说明见 [预览使用指南](docs/PREVIEW-GUIDE.md)。
 
-| 快捷键（默认）                          | 操作                                         |
-| --------------------------------------- | -------------------------------------------- |
-| `Space`                                 | 文件管理器唤起预览；预览窗口内关闭           |
-| `Esc`                                   | 优先关闭菜单、设置，再关闭预览               |
-| `Shift + Space`                         | 请求 / 切换纯文本预览                        |
-| `←` / `→`                               | 上一个 / 下一个文件                          |
-| `Ctrl / ⌘ + O`                          | 选择文件                                     |
-| `Ctrl / ⌘ + Shift + C`                  | 复制路径；浏览器或压缩包内部文件仅复制文件名 |
-| `Ctrl / ⌘ + + / −` 或 `Ctrl / ⌘ + 滚轮` | 调整字号；Word / RTF / PDF 调整页面缩放      |
-| `Enter`                                 | 默认应用打开；不启动可执行文件或脚本         |
+## 隐私与本地数据
 
-输入框、媒体控件和聚焦按钮保留各自的按键行为。完整使用说明见 [预览使用指南](docs/PREVIEW-GUIDE.md)。
+SpacePreview 不上传文件内容，文件仍保存在原来的位置，预览不会修改原文件。偏好设置保存在本机，预览引擎可能创建本地缓存；应用更新会访问发布服务器。
 
-## 文件与安全边界
+文档脚本和 Office 宏不执行，Notebook 不运行单元格。单文件大小上限默认 **256 MB**，可调整为 **16–1024 MB**，各格式还有独立解析限制。当前 Web Worker 不是操作系统级沙箱，也不提供进程级 CPU / 内存隔离。详见 [架构与安全边界](docs/PREVIEW-GUIDE.md#架构与安全边界)。
 
-文件内容在本地处理；HTML 清理后展示，不执行文档脚本、不加载网络资源。本地 HTML 可在读取预算内加载同目录及子目录的 CSS、图片与字体。
+## 从源码构建
 
-单文件上限默认 **256 MB**，可在偏好设置调整为 **16–1024 MB**；压缩包内部文件同样受限，各格式仍有独立解析限制。文本、代码等部分格式会完整读取，占用内存与文件内容有关，尚未完成 GB 级真实文件性能验证。
+### 环境要求
 
-当前 Web Worker 可取消解析，但不等于操作系统级沙箱，也不提供进程级 CPU / 内存隔离。更多实现细节见 [架构与安全边界](docs/PREVIEW-GUIDE.md#架构与安全边界)。
+- Node.js **22.13+** 与 npm。
+- Rust stable。
+- Windows 需要 Visual Studio C++ Build Tools、Windows SDK 和 WebView2；macOS 需要 Xcode Command Line Tools，平台步骤见 [MACOS.md](MACOS.md)。
 
-## 从源码运行
-
-环境：Node.js **22.13+**、Rust stable。Windows 还需要 Visual Studio C++ Build Tools、Windows SDK 和 WebView2；macOS 需要 Xcode Command Line Tools。
-
-```sh
+```bash
 git clone https://github.com/likehao19/SpacePreview.git
 cd SpacePreview
 npm ci
 npm run desktop
 ```
 
-浏览器开发模式：
+运行项目检查并构建桌面安装包：
 
-```sh
-npm run dev
-# http://127.0.0.1:1420
-```
-
-浏览器版支持本地文件选择、拖入和内置示例，不具备文件管理器全局快捷键、真实路径与默认应用打开权限。
-
-### 构建与验证
-
-```sh
+```bash
 npm test
 npm run build
-npm run test:preview
 cargo test --manifest-path src-tauri/Cargo.toml --lib
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 npm run desktop:build
 ```
 
-macOS 通用构建在 Mac 上执行 `npm run desktop:build:mac`。平台构建要求与手动回归记录见 [TESTING.md](TESTING.md)、[MACOS.md](MACOS.md) 和 [应用内更新](docs/UPDATING.md)。
+浏览器模式执行 `npm run dev`，预览引擎回归执行 `npm run test:preview`。macOS 通用构建在 Mac 上执行 `npm run desktop:build:mac`。验证记录见 [TESTING.md](TESTING.md)，应用内更新配置见 [更新说明](docs/UPDATING.md)。独立 HTML / CSS / JS 官网位于 [website/](website/)，使用方法见 [官网 README](website/README.md)。
 
-## 官网
+## 技术栈
 
-官网位于 **[website/](website/)**，使用独立的 HTML、CSS 和 JavaScript，无构建步骤。直接打开 [website/index.html](website/index.html)，或运行：
+SpacePreview 使用 Tauri 2 与 Rust、React 19 与 TypeScript、PDF.js、docx-preview、highlight.js，以及面向图像、压缩包、数据库与模型的本地 JS / WASM 预览引擎构建。
 
-```sh
-python -m http.server 8080 --directory website
-```
+## 参与贡献
 
-访问 `http://localhost:8080`。网站包含可切换、放大的真实软件截图、功能介绍、文件类型表格与平台下载。部署说明见 [官网 README](website/README.md)。
+欢迎通过 [GitHub Issues](https://github.com/likehao19/SpacePreview/issues) 提交可复现的问题或聚焦的功能建议。请附上系统版本、瞬览版本、文件格式与复现步骤；提交代码前运行相关前端测试、生产构建与 Rust 检查。源文件使用 UTF-8 无 BOM。
 
-## 交流与贡献
+社区交流：[LinuxDo](https://linux.do/)。历史迭代见 [历史更新](docs/HISTORY.md)，当前版本说明见 [RELEASE-NOTES.md](RELEASE-NOTES.md)。
 
-欢迎通过 [GitHub Issues](https://github.com/likehao19/SpacePreview/issues) 提交可复现的问题和具体功能建议，也欢迎到 **[LinuxDo 社区](https://linux.do/)** 交流使用体验。
+## 贡献者
 
-反馈问题时，请提供系统版本、瞬览版本、文件格式、复现步骤和相关日志；分享样本前先移除私人信息。提交代码前请运行与改动相关的测试与构建检查。所有源代码文件使用 UTF-8 无 BOM。
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/likehao19">
+        <img src="https://avatars.githubusercontent.com/u/96912988?v=4" width="72" height="72" alt="likehao19" /><br />
+        <sub><strong>likehao19</strong></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/StackTao">
+        <img src="https://avatars.githubusercontent.com/u/243470334?v=4" width="72" height="72" alt="StackTao" /><br />
+        <sub><strong>StackTao</strong></sub>
+      </a>
+    </td>
+  </tr>
+</table>
 
-技术栈：Tauri 2、Rust、React 19、TypeScript，以及面向各格式的本地预览引擎。第三方组件说明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+## Star 增长趋势
 
-历史迭代记录已移至 [历史更新](docs/HISTORY.md)，当前版本变更见 [RELEASE-NOTES.md](RELEASE-NOTES.md)。本 README 的信息组织参考 [InkNote](https://github.com/likehao19/InkNote)。
+<picture>
+  <img alt="SpacePreview Star 增长曲线" src="https://api.star-history.com/svg?repos=likehao19/SpacePreview&type=Date" />
+</picture>
+
+## 开源协议
+
+当前仓库尚未提供项目级 `LICENSE` 文件，暂未声明具体开源协议。第三方依赖的许可证与声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
