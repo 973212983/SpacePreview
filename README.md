@@ -149,7 +149,7 @@ macOS 通用构建在 Mac 上执行 `npm run desktop:build:mac`。平台构建�
 python -m http.server 8080 --directory website
 ```
 
-访问 `http://localhost:8080`。网站包含可切换的预览界面示意、功能介绍、格式说明、平台下载和 LinuxDo 社区入口。部署说明见 [官网 README](website/README.md)。
+访问 `http://localhost:8080`。网站包含可切换、放大的真实软件截图、功能介绍、文件类型表格与平台下载。部署说明见 [官网 README](website/README.md)。
 
 ## 交流与贡献
 
