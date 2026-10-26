@@ -16,8 +16,8 @@ python -m http.server 8080 --directory website
 
 - `index.html`：产品介绍、真实截图展示、功能、文件类型表格、四个平台下载入口和常见问题。
 - `styles.css`：白底蓝色响应式布局，适配手机与桌面，支持减少动态效果的系统设置。
-- `script.js`：七张截图的切换、方向键导航、图片放大与关闭。不读取本地文件，也不请求外部接口。
-- `assets/app-icon.svg`：来自项目 `public/app-icon.svg` 的软件图标。
+- `script.js`：七张截图的切换、方向键导航、图片放大与关闭。不读取本地文件；另通过 GitHub 公共 API 获取最新发布版本与安装包地址。
+- `assets/app-icon.png`：直接使用 `src-tauri/icons/icon.png` 中当前桌面软件的黑色 S 图标，包含页签、导航、首屏和页脚。
 - `assets/preview-*.png`：用户提供的 Windows 版真实截图，按原图复制，未裁剪或重绘软件界面。
 
 截图来自用户提供的 `帖子.md` 中引用的图片。选择的文件对应如下，便于以后更新：
@@ -36,13 +36,15 @@ python -m http.server 8080 --directory website
 
 ## 下载与部署
 
-下载入口指向 GitHub 最新发布页，由用户选择系统与架构，避免固定版本文件名失效。macOS Intel 与 Apple Silicon 分开列出，Linux 为 x64 的 AppImage / DEB。
+页面加载时请求 `https://api.github.com/repos/likehao19/SpacePreview/releases/latest`，显示最新版本号，按平台和架构从 assets 中匹配安装包，并将按钮更新为 `browser_download_url`，点击即可开始下载。Windows 使用 EXE，两种 macOS 架构分别使用 DMG，Linux 主按钮下载 AppImage，另提供 DEB 链接。签名文件和更新归档不会被误选为安装包。
+
+请求 8 秒超时或失败时，保留已核实的 v0.10.14 固定版本下载地址，并显示备用版本提示；禁用脚本时这些地址仍可使用。若成功获取的新版缺少某个平台安装包，该按钮改为查看发布页，不会误下载其他架构。发布新版时可同时更新 HTML 中的备用链接、备用版本文字和脚本中的失败提示。
 
 将本文件夹的内容上传到静态网站托管服务，以 `index.html` 为首页即可，支持子目录部署。当前改动保存在本地，未部署到线上。
 
 ## 更新与检查
 
-发布新版时同步更新版本、格式与平台说明。更换截图时同步调整 `script.js` 中的说明、`index.html` 中的默认截图与图片尺寸；更换图标时从 `public/app-icon.svg` 复制到 `assets/`。
+发布新版时同步更新版本、格式与平台说明。更换截图时同步调整 `script.js` 中的说明、`index.html` 中的默认截图与图片尺寸；更换图标时将 `src-tauri/icons/icon.png` 复制为 `assets/app-icon.png`。
 
 安装项目依赖后，在项目根目录运行：
 
@@ -50,4 +52,4 @@ python -m http.server 8080 --directory website
 node scripts/smoke-website.mjs
 ```
 
-需要本机 Microsoft Edge。检查覆盖离线打开、截图切换与键盘操作、放大与关闭、格式表格、FAQ、下载和导航链接、六种视口宽度、禁用脚本后的内容，以及 Markdown 本地链接。桌面和手机截图保存到忽略跟踪的 `test-results/`。
+需要本机 Microsoft Edge。检查覆盖离线打开、截图切换与键盘操作、放大与关闭、格式表格、FAQ、最新版本获取、各平台直接下载、接口失败 / 超时 / 缺包回退、导航链接、六种视口宽度、禁用脚本后的内容，以及 Markdown 本地链接。桌面和手机截图保存到忽略跟踪的 `test-results/`。

@@ -9,7 +9,7 @@
       content="瞬览 SpacePreview，本地优先的多格式文件预览工具。选中文件，轻按空格，快速查看文档、图片、代码和压缩包。支持 Windows、macOS 与 Linux。"
     />
     <title>瞬览 SpacePreview · 不必打开，看一眼就好</title>
-    <link rel="icon" href="assets/app-icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="assets/app-icon.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
     <script src="script.js" defer></script>
   </head>
@@ -18,7 +18,7 @@
     <header class="header">
       <div class="container header-inner">
         <a class="brand" href="#" aria-label="瞬览首页"
-          ><img src="assets/app-icon.svg" width="32" height="32" alt="" /><span
+          ><img src="assets/app-icon.png" width="32" height="32" alt="" /><span
             >瞬览 <small>SpacePreview</small></span
           ></a
         >
@@ -54,13 +54,14 @@
             >
           </div>
           <a class="release-link" href="https://github.com/likehao19/SpacePreview/releases/latest"
-            >当前源码 v0.10.14 <span>·</span> 查看最新发布 ↗</a
+            ><span data-release-label>下载版本</span> <span data-release-version>v0.10.14</span>
+            <span>·</span> 查看最新发布 ↗</a
           >
         </div>
         <div class="hero-product">
           <div class="icon-tile">
             <img
-              src="assets/app-icon.svg"
+              src="assets/app-icon.png"
               width="184"
               height="184"
               alt="瞬览 SpacePreview 软件图标"
@@ -497,7 +498,14 @@
             <div>
               <span class="eyebrow">04 / 选择你的平台</span>
               <h2>下一次查看，从瞬览开始。</h2>
-              <p>前往 GitHub 最新发布页，选择对应系统与架构的安装包。</p>
+              <p>
+                点击按钮直接下载对应系统的安装包。<span
+                  class="release-state"
+                  data-release-state
+                  role="status"
+                  >备用版本 v0.10.14</span
+                >
+              </p>
             </div>
           </div>
           <div class="download-grid">
@@ -507,9 +515,11 @@
               <p>Windows 10 / 11 · x64<br />安装程序 · 需要 WebView2</p>
               <a
                 class="button primary"
-                href="https://github.com/likehao19/SpacePreview/releases/latest"
-                >获取 Windows 版 <span>↗</span></a
-              ><small>windows-x64-setup.exe</small>
+                data-platform="windows"
+                href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-windows-x64-setup.exe"
+                ><span data-download-label>下载 Windows 版</span>
+                <span data-download-arrow>↓</span></a
+              ><small data-package-name>SpacePreview-0.10.14-windows-x64-setup.exe</small>
             </article>
             <article class="download-card">
               <span class="os-icon" aria-hidden="true">⌘</span>
@@ -517,9 +527,11 @@
               <p>Intel 芯片 · x64<br />DMG 安装包</p>
               <a
                 class="button secondary"
-                href="https://github.com/likehao19/SpacePreview/releases/latest"
-                >获取 Mac Intel 版 <span>↗</span></a
-              ><small>macos-x64.dmg</small>
+                data-platform="macos-x64"
+                href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-x64.dmg"
+                ><span data-download-label>下载 Mac Intel 版</span>
+                <span data-download-arrow>↓</span></a
+              ><small data-package-name>SpacePreview-0.10.14-macos-x64.dmg</small>
             </article>
             <article class="download-card">
               <span class="os-icon" aria-hidden="true">⌘</span>
@@ -527,9 +539,11 @@
               <p>Apple Silicon · ARM64<br />DMG 安装包</p>
               <a
                 class="button secondary"
-                href="https://github.com/likehao19/SpacePreview/releases/latest"
-                >获取 Mac ARM 版 <span>↗</span></a
-              ><small>macos-arm64.dmg</small>
+                data-platform="macos-arm64"
+                href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-macos-arm64.dmg"
+                ><span data-download-label>下载 Mac ARM 版</span>
+                <span data-download-arrow>↓</span></a
+              ><small data-package-name>SpacePreview-0.10.14-macos-arm64.dmg</small>
             </article>
             <article class="download-card">
               <span class="os-icon terminal-icon" aria-hidden="true">&gt;_</span>
@@ -537,9 +551,19 @@
               <p>Intel / AMD · x64<br />AppImage / DEB</p>
               <a
                 class="button secondary"
-                href="https://github.com/likehao19/SpacePreview/releases/latest"
-                >获取 Linux 版 <span>↗</span></a
-              ><small>拖入文件或 Ctrl+O 预览</small>
+                data-platform="linux"
+                href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.AppImage"
+                ><span data-download-label>下载 Linux 版</span>
+                <span data-download-arrow>↓</span></a
+              ><small data-package-name>SpacePreview-0.10.14-linux-x64.AppImage</small
+              ><small
+                ><a
+                  class="text-link"
+                  data-platform="linux-deb"
+                  href="https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-linux-x64.deb"
+                  ><span data-download-label>下载 DEB</span> <span data-download-arrow>↓</span></a
+                ></small
+              >
             </article>
           </div>
           <p class="download-note">
@@ -601,7 +625,7 @@
     <footer class="footer">
       <div class="container footer-inner">
         <a class="brand" href="#"
-          ><img src="assets/app-icon.svg" width="27" height="27" alt="" /><span
+          ><img src="assets/app-icon.png" width="27" height="27" alt="" /><span
             >瞬览 <small>SpacePreview</small></span
           ></a
         >

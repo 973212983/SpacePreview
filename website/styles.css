@@ -222,6 +222,12 @@ h1 {
 .release-link:hover {
   color: var(--blue);
 }
+.release-state {
+  display: block;
+  color: var(--blue);
+  font-size: 12px;
+  margin-top: 8px;
+}
 .hero-product {
   width: 100%;
 }

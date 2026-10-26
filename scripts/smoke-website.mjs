@@ -7,10 +7,40 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const websiteUrl = new URL('../website/index.html', import.meta.url).href;
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const errors = [];
+const releaseApi = 'https://api.github.com/repos/likehao19/SpacePreview/releases/latest';
+const releaseBase = 'https://github.com/likehao19/SpacePreview/releases/download/v99.0.0/';
+const packageNames = [
+  'SpacePreview-99.0.0-windows-x64-setup.exe',
+  'SpacePreview-99.0.0-macos-x64.dmg',
+  'SpacePreview-99.0.0-macos-arm64.dmg',
+  'SpacePreview-99.0.0-linux-x64.AppImage',
+  'SpacePreview-99.0.0-linux-x64.deb',
+];
+const releaseFixture = {
+  tag_name: 'v99.0.0',
+  assets: [
+    // 签名、更新包和其他架构不得被选作对应安装包。
+    ...[
+      'SpacePreview-99.0.0-windows-x64-setup.exe.sig',
+      'SpacePreview-99.0.0-macos-arm64.app.tar.gz',
+      'SpacePreview-99.0.0-linux-arm64.AppImage',
+      ...packageNames,
+    ].map((name) => ({ name, browser_download_url: releaseBase + name })),
+  ],
+};
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await page.route(releaseApi, (route) => route.fulfill({ json: releaseFixture }));
   page.on('pageerror', (error) => errors.push(error.message));
-  page.on('requestfailed', (request) => errors.push(request.url()));
+  page.on('requestfailed', (request) => {
+    // 浏览器接管附件下载时会中止导航请求；下方单独断言下载完成。
+    if (
+      request.url().startsWith(releaseBase) &&
+      request.failure()?.errorText === 'net::ERR_ABORTED'
+    )
+      return;
+    errors.push(request.url());
+  });
   // 官网应可直接离线打开，截图不依赖帖子原目录和外部服务。
   await page.goto(websiteUrl);
   await expect(page).toHaveTitle(/SpacePreview/);
@@ -18,6 +48,40 @@ try {
   await page.keyboard.press('Tab');
   await expect(page.locator('.skip-link')).toBeFocused();
   await expect(page.locator('.skip-link')).toHaveCSS('opacity', '1');
+  await expect(page.locator('[data-release-state]')).toContainText('最新版本 v99.0.0');
+  await expect(page.locator('[data-release-version]')).toHaveText('v99.0.0');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', 'assets/app-icon.png');
+  expect(fs.readFileSync(path.join(root, 'website/assets/app-icon.png'))).toEqual(
+    fs.readFileSync(path.join(root, 'src-tauri/icons/icon.png')),
+  );
+  await page.route(`${releaseBase}*`, (route) =>
+    route.fulfill({
+      headers: {
+        'Content-Disposition': `attachment; filename="${route.request().url().split('/').pop()}"`,
+      },
+      contentType: 'application/octet-stream',
+      body: 'Website download test fixture, not an installer.',
+    }),
+  );
+  for (const [index, platform] of [
+    'windows',
+    'macos-x64',
+    'macos-arm64',
+    'linux',
+    'linux-deb',
+  ].entries()) {
+    const button = page.locator(`[data-platform="${platform}"]`);
+    await expect(button).toHaveAttribute('href', releaseBase + packageNames[index]);
+    const downloadEvent = page.waitForEvent('download');
+    await button.click();
+    const download = await downloadEvent;
+    expect(download.suggestedFilename()).toBe(packageNames[index]);
+    expect(await download.failure()).toBeNull();
+    await download.delete();
+    expect(page.url()).toBe(websiteUrl);
+  }
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
 
   const loadedImages = async () => {
     await page.waitForFunction(() =>
@@ -120,6 +184,44 @@ try {
     'assets/preview-archive.png',
   );
   await noJs.close();
+  for (const scenario of ['http-error', 'invalid-json', 'timeout', 'missing-package']) {
+    const fallback = await browser.newPage();
+    await fallback.route(releaseApi, async (route) => {
+      if (scenario === 'http-error') return route.fulfill({ status: 503, body: 'Unavailable' });
+      if (scenario === 'invalid-json')
+        return route.fulfill({ contentType: 'application/json', body: '{}' });
+      if (scenario === 'timeout') return;
+      return route.fulfill({
+        json: {
+          ...releaseFixture,
+          assets: releaseFixture.assets.filter((asset) => !/-macos-arm64\.dmg$/i.test(asset.name)),
+        },
+      });
+    });
+    await fallback.goto(websiteUrl);
+    if (scenario === 'missing-package') {
+      await expect(fallback.locator('[data-release-state]')).toContainText('部分安装包');
+      await expect(fallback.locator('[data-platform="macos-arm64"]')).toHaveAttribute(
+        'href',
+        'https://github.com/likehao19/SpacePreview/releases/latest',
+      );
+      await expect(fallback.locator('[data-platform="macos-arm64"]')).toContainText('查看发布页');
+      await expect(fallback.locator('[data-platform="macos-x64"]')).toHaveAttribute(
+        'href',
+        releaseBase + packageNames[1],
+      );
+    } else {
+      await expect(fallback.locator('[data-release-state]')).toContainText('备用版本 v0.10.14', {
+        timeout: 11000,
+      });
+      await expect(fallback.locator('[data-platform="windows"]')).toHaveAttribute(
+        'href',
+        'https://github.com/likehao19/SpacePreview/releases/download/v0.10.14/SpacePreview-0.10.14-windows-x64-setup.exe',
+      );
+      await expect(fallback.locator('[data-release-version]')).toHaveText('v0.10.14');
+    }
+    await fallback.close();
+  }
   for (const name of [
     'README.md',
     'website/README.md',
@@ -140,7 +242,7 @@ try {
   }
   expect(errors).toEqual([]);
   console.log(
-    'Website checks passed: seven real screenshots, image loading, tab keyboard navigation, zoom/close/Escape/backdrop, two-column format table, FAQ, no LinuxDo links, downloads, six responsive widths, offline/no-JS content, Markdown links.',
+    'Website checks passed: latest release, five direct downloads, architecture/signature filtering, API error/timeout/missing-package fallbacks, current app icon, seven screenshots, zoom, FAQ, six responsive widths, offline/no-JS content, Markdown links.',
   );
 } finally {
   await browser.close();
