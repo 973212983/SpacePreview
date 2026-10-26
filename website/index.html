@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f7f4" />
+    <meta
+      name="description"
+      content="瞬览 SpacePreview，本地文件预览器。选中文件，轻按空格，查看文档、图片、代码与压缩包。支持 Windows、macOS 与 Linux。"
+    />
+    <title>瞬览 SpacePreview · 不必打开，看一眼就好</title>
+    <link rel="icon" href="assets/app-icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到正文</a>
+    <header class="header">
+      <a class="brand" href="#" aria-label="瞬览首页"
+        ><img src="assets/app-icon.svg" width="38" height="38" alt="" /><span
+          >瞬览 <small>SpacePreview</small></span
+        ></a
+      >
+      <nav aria-label="主导航">
+        <a href="#features">功能</a><a href="#formats">支持格式</a><a href="#community">社区</a
+        ><a href="https://linux.do/" target="_blank" rel="noopener noreferrer">LinuxDo ↗</a>
+      </nav>
+      <a class="nav-download" href="#download">下载瞬览 <span aria-hidden="true">↓</span></a>
+    </header>
+
+    <main id="main">
+      <section class="hero section-wrap">
+        <div class="hero-copy">
+          <a class="release" href="https://github.com/likehao19/SpacePreview/releases/latest"
+            ><span></span> v0.10.14 <i> / </i> 让每一次预览更从容 ↗</a
+          >
+          <h1>不必打开，<br />看一眼<span class="accent">就好。</span></h1>
+          <p class="hero-description">找到文件与读到内容之间，<br />只隔一个空格。</p>
+          <p class="hero-detail">
+            文档、图片、代码、压缩包……<br />用一个轻巧的窗口，接住你片刻的好奇。
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#download">下载瞬览 <span aria-hidden="true">↓</span></a
+            ><a class="text-link" href="https://github.com/likehao19/SpacePreview">GitHub 源码 ↗</a>
+          </div>
+          <p class="platform-note">Windows · macOS · Linux <span> / </span> 本地预览</p>
+        </div>
+        <div class="hero-stage">
+          <div class="stage-label">
+            <span>LESS OPENING. MORE SEEING.</span><span>01 / PREVIEW</span>
+          </div>
+          <div class="preview-window" aria-label="交互式预览界面示意">
+            <div class="window-bar">
+              <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+              <span id="demo-filename">灵感笔记.md</span><span aria-hidden="true">···</span>
+            </div>
+            <div class="preview-body">
+              <aside class="demo-outline" aria-label="演示文档大纲">
+                <span>文档大纲</span><b>留一点空间</b><span>把注意力还给内容</span
+                ><span>从一眼开始</span>
+                <div class="outline-bottom">MARKDOWN<br /><strong>本地文件 · 只读预览</strong></div>
+              </aside>
+              <div class="demo-content" id="demo-content" aria-live="polite" aria-atomic="true">
+                <span class="paper-label">NOTES / 001</span>
+                <h2>留一点空间</h2>
+                <p class="paper-intro">给灵感，也给每一次不经意的发现。</p>
+                <hr />
+                <h3>把注意力还给内容</h3>
+                <p>有时候，我们只是想确认一段文字、<br />看看一张图片，而不必开启整个工作流。</p>
+                <blockquote>少一点等待，多一点心流。</blockquote>
+                <h3>从一眼开始</h3>
+                <p class="demo-check">✓ 选中文件　 ✓ 轻按空格　 ✓ 即刻浏览</p>
+              </div>
+            </div>
+            <div class="window-status">
+              <span>界面示意 · 点击下方切换文件</span><span>UTF-8</span>
+            </div>
+          </div>
+          <div class="demo-controls" role="group" aria-label="选择演示文件">
+            <button class="file-chip active" data-demo="markdown" aria-pressed="true">
+              <span class="file-icon mint">M↓</span> 灵感笔记.md
+            </button>
+            <button class="file-chip" data-demo="code" aria-pressed="false">
+              <span class="file-icon blue">{ }</span> hello.ts
+            </button>
+            <button class="file-chip" data-demo="archive" aria-pressed="false">
+              <span class="file-icon amber">▤</span> 项目归档.zip
+            </button>
+          </div>
+          <div class="space-hint">
+            <kbd>space</kbd><span>一按，内容就在眼前</span
+            ><span class="hint-line" aria-hidden="true"></span>
+          </div>
+        </div>
+      </section>
+
+      <div class="trust-strip section-wrap">
+        <span>你的文件，留在你的电脑。</span><span>本地读取</span><span>只读预览</span
+        ><span>无需上传文件</span><span class="strip-tech">BUILT WITH TAURI + RUST</span>
+      </div>
+
+      <section class="section-wrap feature-section" id="features">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">为片刻查看而生</span>
+            <h2>少一步操作，<br />多一分专注。</h2>
+          </div>
+          <p>从文件列表到内容本身，<br />让查看成为一个自然的动作。</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature feature-key">
+            <span class="feature-number">01 / SIMPLE</span>
+            <div class="key-visual" aria-hidden="true">
+              <span>选中文件</span><span>→</span><kbd>space</kbd>
+            </div>
+            <h3>选中，空格，就这样。</h3>
+            <p>
+              Windows 资源管理器、桌面与 macOS Finder 中，选中文件，按下
+              Space。看完再按一次，回到手头的工作。
+            </p>
+            <small>macOS 需授权；Linux 使用拖入文件或 Ctrl+O。</small>
+          </article>
+          <article class="feature feature-read">
+            <span class="feature-number">02 / FOCUSED</span>
+            <div class="reading-visual" aria-hidden="true">
+              <span>目 录</span><i></i><i></i><i></i>
+              <div><b>Aa</b><span>让阅读回归内容</span></div>
+            </div>
+            <h3>读起来，顺手一点。</h3>
+            <p>
+              文档大纲、全文搜索、字体与字号调整。PDF
+              连续滚动，代码语法高亮，所需工具收进「更多」菜单。
+            </p>
+          </article>
+          <article class="feature feature-local">
+            <span class="feature-number">03 / LOCAL</span>
+            <div class="local-visual" aria-hidden="true">
+              <span>⌁</span>
+              <div>你的电脑<small>文件 → 预览</small></div>
+            </div>
+            <h3>文件始终在本地。</h3>
+            <p>
+              预览不修改原文件，不上传文件内容。文档中的脚本不会执行；切换或关闭时，取消旧的解析任务。
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="formats-section" id="formats">
+        <div class="section-wrap">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">一个窗口，多种内容</span>
+              <h2>你想看的，<br />不只有文档。</h2>
+            </div>
+            <a
+              class="text-link"
+              href="https://github.com/likehao19/SpacePreview/blob/main/docs/FORMAT_PARITY.md"
+              >查看完整格式与能力边界 ↗</a
+            >
+          </div>
+          <div class="format-grid">
+            <article>
+              <span class="format-symbol">Aa</span>
+              <h3>文档与阅读</h3>
+              <p>PDF、Word、Markdown、RTF、EPUB</p>
+              <small>大纲、搜索与阅读；复杂排版可能存在差异。</small>
+            </article>
+            <article>
+              <span class="format-symbol">◈</span>
+              <h3>图片与设计</h3>
+              <p>PNG、SVG、PSD、HEIC、TIFF</p>
+              <small>缩放、旋转；部分设计格式读取内置预览图。</small>
+            </article>
+            <article>
+              <span class="format-symbol">&lt;/&gt;</span>
+              <h3>代码与网页</h3>
+              <p>TypeScript、JSON、XML、HTML</p>
+              <small>代码高亮与折叠，网页 / 阅读 / 源码切换。</small>
+            </article>
+            <article>
+              <span class="format-symbol">▤</span>
+              <h3>压缩包与容器</h3>
+              <p>ZIP、7Z、RAR、TAR、ASAR</p>
+              <small>浏览目录，继续预览内部支持的文件。</small>
+            </article>
+            <article>
+              <span class="format-symbol">▦</span>
+              <h3>表格与数据</h3>
+              <p>XLSX、CSV、TSV、SQLite</p>
+              <small>多工作表、虚拟滚动或记录分页，不执行宏。</small>
+            </article>
+            <article>
+              <span class="format-symbol">◇</span>
+              <h3>模型与更多</h3>
+              <p>STL、OBJ、STEP、音视频、字体</p>
+              <small>模型交互查看；媒体播放取决于系统编码支持。</small>
+            </article>
+          </div>
+          <p class="format-note">
+            不同格式使用不同预览引擎，支持范围与文件限制有所区别。未支持的文件仍可查看基本信息。
+          </p>
+        </div>
+      </section>
+
+      <section class="download-section section-wrap" id="download">
+        <span class="eyebrow">下一次查看，从这里开始</span>
+        <h2>给空格键，<br />一个新用处。</h2>
+        <p class="section-description">
+          选择你的系统，下载瞬览。<br />安装包与更新记录由 GitHub Releases 提供。
+        </p>
+        <div class="download-grid">
+          <article>
+            <span class="os-icon" aria-hidden="true">⊞</span>
+            <h3>Windows</h3>
+            <p>Windows 10 / 11 · x64</p>
+            <a
+              class="button primary"
+              href="https://github.com/likehao19/SpacePreview/releases/latest"
+              >下载安装包 <span>↗</span></a
+            ><small>选择 windows-x64-setup.exe<br />需要 WebView2 Runtime</small>
+          </article>
+          <article>
+            <span class="os-icon" aria-hidden="true">⌘</span>
+            <h3>macOS</h3>
+            <p>Apple Silicon / Intel</p>
+            <a
+              class="button secondary"
+              href="https://github.com/likehao19/SpacePreview/releases/latest"
+              >下载 DMG <span>↗</span></a
+            ><small>选择 macos-arm64 / macos-x64<br />Finder 预览需辅助功能与自动化授权</small>
+          </article>
+          <article>
+            <span class="os-icon" aria-hidden="true">❯_</span>
+            <h3>Linux</h3>
+            <p>x64 · AppImage / DEB</p>
+            <a
+              class="button secondary"
+              href="https://github.com/likehao19/SpacePreview/releases/latest"
+              >选择 Linux 安装包 <span>↗</span></a
+            ><small>拖入文件或 Ctrl+O 开始预览<br />暂不支持文件管理器空格唤起</small>
+          </article>
+        </div>
+        <p class="download-note">
+          macOS 安装包使用临时签名，尚未进行 Apple Developer ID 签名与公证。<a
+            href="https://github.com/likehao19/SpacePreview/blob/main/MACOS.md"
+            >查看安装说明 ↗</a
+          >
+        </p>
+      </section>
+
+      <section class="faq-section section-wrap">
+        <div>
+          <span class="eyebrow">开始之前</span>
+          <h2>你可能还想知道</h2>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>这是在线文件预览工具吗？</summary>
+            <p>
+              瞬览是一款桌面软件，文件在本地只读预览，不需要上传。这个网站中的预览是交互式界面示意，不会读取你的文件。
+            </p>
+          </details>
+          <details>
+            <summary>所有系统都能按空格预览吗？</summary>
+            <p>
+              Windows 支持资源管理器与桌面，macOS 已接入 Finder，需要授予辅助功能与 Finder
+              自动化权限，兼容性仍需真机验证。Linux 当前使用拖入文件或
+              Ctrl+O，尚未接入文件管理器快捷键。
+            </p>
+          </details>
+          <details>
+            <summary>Office 文档能完全还原吗？</summary>
+            <p>
+              Word 支持页面、图片、表格和大纲，复杂浮动排版、公式和缺失字体可能影响显示。PowerPoint
+              原始页面预览需要 Windows 本地安装并激活 Microsoft PowerPoint；其他情况提供文字速览。
+            </p>
+          </details>
+          <details>
+            <summary>大文件也可以预览吗？</summary>
+            <p>
+              单个文件大小上限默认 256 MB，可在偏好设置中调整为 16–1024
+              MB。不同格式还有独立的解析限制。尚未完成 GB
+              级真实文件的性能验证，具体边界请查看项目文档。
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="community section-wrap" id="community">
+        <div>
+          <span class="eyebrow">一起，让瞬览更好用</span>
+          <h2>好用的工具，<br />在交流中生长。</h2>
+          <p>分享使用体验，提交问题，或者来聊聊你的想法。</p>
+        </div>
+        <div class="community-links">
+          <a href="https://linux.do/" target="_blank" rel="noopener noreferrer"
+            ><span><small>社区交流</small><strong>LINUX DO</strong></span
+            ><span>↗</span></a
+          ><a href="https://github.com/likehao19/SpacePreview/issues"
+            ><span><small>问题反馈与功能建议</small><strong>GitHub Issues</strong></span
+            ><span>↗</span></a
+          >
+        </div>
+      </section>
+    </main>
+    <footer class="footer section-wrap">
+      <a class="brand" href="#"
+        ><img src="assets/app-icon.svg" width="30" height="30" alt="" /><span
+          >瞬览 <small>SpacePreview</small></span
+        ></a
+      ><span>把时间，留给内容。</span>
+      <div>
+        <a href="https://github.com/likehao19/SpacePreview">GitHub ↗</a
+        ><a href="https://linux.do/" target="_blank" rel="noopener noreferrer">LinuxDo ↗</a>
+      </div>
+    </footer>
+  </body>
+</html>

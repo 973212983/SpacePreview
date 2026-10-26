@@ -1,242 +1,162 @@
+<div align="center">
+
+<img src="public/app-icon.svg" alt="瞬览图标" width="88" height="88" />
+
 # 瞬览 · SpacePreview
 
-**不必打开，看一眼就好。** 基于 Tauri 2、React、TypeScript 和 Rust 的本地文件预览器。
+**不必打开，看一眼就好。**
 
-当前源码版本为 **v0.10.14**。纯文本解析前检查内容，二进制 DLL/EXE 显示文件信息与字节预览，避免全文解析卡住。文字预览统一默认 16px，并支持字体、字号与键盘/滚轮调整；v0.10.0 补充了专业图像、压缩容器、CAD/三维、旧版 Office、数据库、邮件、字体、图表和设计预览。新增格式的能力、实测状态与剩余缺口见 [格式对照清单](docs/FORMAT_PARITY.md)。GitHub 最新已发布版本与本地开发构建可能不同。macOS 已接入 Finder 快捷键监听、权限提示和 Dock 文件打开；本轮新增引擎与字体操作尚未进行 Mac 真机验收。
+一款本地文件预览器。选中文件，轻按空格，查看文档、图片、代码与压缩包。
 
-[下载安装包](https://github.com/likehao19/SpacePreview/releases/latest) · [版本说明](RELEASE-NOTES.md)。Mac 包使用临时签名，未进行 Apple Developer ID 签名和公证。
+[![Release](https://img.shields.io/github/v/release/likehao19/SpacePreview?label=release&color=176b55)](https://github.com/likehao19/SpacePreview/releases/latest)
+![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-567461)
+![Stack](https://img.shields.io/badge/built%20with-Tauri%202%20%2B%20Rust-647c6a)
+[![LinuxDo](https://img.shields.io/badge/community-LinuxDo-d4a75b)](https://linux.do/)
 
-v0.9.13：偏好设置加宽至 680px，减少留白并用两列显示快捷键说明，默认 1000×760 窗口完整显示；小窗口仍可滚动。Windows/macOS 分别录入预览快捷键并自动保存，默认 Space，可一键重置；支持字母、数字、符号、F1–F12 与 Ctrl/Alt/Win（macOS 为 Control/Option/Command）组合。Shift + 预览快捷键保留为纯文本模式，Esc 和方向键等导航键及 Ctrl/⌘+O 不可设为预览键。原生 Explorer/Finder 与 Word/HTML 内部键盘行为同步，仍在松开主键后触发一次；WebView2 缺少物理键码时按键名称回退识别。请避开系统已占用的组合键。
+[下载软件](https://github.com/likehao19/SpacePreview/releases/latest) · [官网源码](website/) · [版本说明](RELEASE-NOTES.md) · [问题反馈](https://github.com/likehao19/SpacePreview/issues) · [LinuxDo 社区](https://linux.do/)
 
-v0.9.12：Windows 本地 PPTX/PPTM/模板/放映文稿优先通过已安装的 Microsoft PowerPoint 只读生成页面预览，保留静态图片、文字字体和排版；全页连续滚动，默认适应窗口，可搜索、缩放和选择文字。首次转换显示加载动画，后续按文件路径/大小/修改时间读取本地缓存；原文件不修改。更多菜单可切换文字速览，文字片段保留空格、换行与字段顺序。未安装 PowerPoint、转换失败、macOS、浏览器或压缩包内无本地路径的文稿仍提供文字速览；页面不播放动画、视频，也不运行宏。
+</div>
 
-v0.9.11：PDF 增加可选择的透明文字层，拖选后可用 Ctrl+C（macOS 为 Command+C）复制；文字层跟随页面缩放，邻近页加载并随离屏释放。纯扫描图片 PDF 尚无 OCR 文字识别。
+## 从文件列表，直接到内容
 
-v0.9.10：PDF 改为连续滚动全页预览，滚动可看到后续页面；可见区域及邻近页绘制，离屏页面释放位图。翻页、搜索与目录跳转定位到对应页面，缩放保留当前页；单页位图控制在约 1600 万像素，避免大量页面同时占用内存。工具仍集中在更多菜单。
+瞬览把临时查看文件变成一个简单的动作。在 Windows 资源管理器、桌面或 macOS Finder 中选中文件，按下 `Space` 预览，看完再按一次即可返回。Linux 当前支持拖入文件和 `Ctrl+O`，尚未接入文件管理器空格唤起。
 
-v0.9.9：Word 在没有正式标题层级时，补充识别短段落的完整加粗标题和章节编号；正式标题、正文层级优先。大纲字号 12px，滚动条 3px。
+- **本地只读**：不修改原文件，不上传文件内容。
+- **多格式预览**：文档、图片、代码、表格、压缩包、音视频与部分专业格式，共用一个预览窗口。
+- **专注阅读**：大纲、搜索、缩放、字体与字号调整，工具集中在「更多」菜单。
+- **按需处理**：PDF 可见页与邻近页绘制，ZIP 按需读取目录和条目；切换或关闭时取消旧解析任务。
+- **顺手使用**：同目录文件切换、自定义预览快捷键、明暗主题、可选开机自启动与应用内更新。
 
-v0.9.8：取消压缩包列表行的按压位移和过渡动画，点击与键盘选择保持位置稳定，选中背景高亮保留。
+当前源码版本为 **v0.10.14**；已发布安装包以 [GitHub Releases](https://github.com/likehao19/SpacePreview/releases) 为准。最新改动包括 JSON/XML 等代码折叠、单文件大小上限、HTML 本地静态资源预览与 Word 大纲显示优化，详见 [版本说明](RELEASE-NOTES.md)。
 
-v0.9.7：所有格式的预览工具集中到右侧“更多”菜单，包括 Word 适应宽度/缩放、大纲和文字速览，Markdown 字体/字号，文本搜索/换行，图片/PDF 缩放与翻页，HTML 模式切换、CAD/模型适应视图、电子书章节和压缩包搜索。头部保留文件名、文件切换、压缩包返回和窗口按钮；菜单按当前文件更新，小窗口内可滚动，Esc 关闭菜单时保留搜索和预览状态。
+## 能预览什么
 
-v0.9.6：CSV/TSV 完整读取与解析，移除 8 MB、5000 行和 100 列的预览限制；加载时显示动画，之后连续滚动查看全部行列。表格仅绘制可见行以减少页面负担，公式作为原始文本显示，不执行。压缩包内 CSV/TSV 复用此流程，ZIP 单条目 32 MB 限制保留。
+| 内容         | 代表格式                                 | 预览方式                                                       |
+| ------------ | ---------------------------------------- | -------------------------------------------------------------- |
+| 文档与电子书 | PDF、DOCX、RTF、Markdown、EPUB、FB2      | 页面或阅读视图、大纲、搜索；能力因格式而异                     |
+| 图片与设计   | PNG、JPEG、SVG、TIFF、PSD/PSB、HEIC 等   | 缩放、旋转；部分设计文件读取内置预览图                         |
+| 代码与网页   | TypeScript、JSON、XML、HTML、配置文件    | 语法高亮、搜索、代码折叠、网页 / 阅读 / 源码切换               |
+| 表格与数据库 | XLSX、XLS、CSV、TSV、ODS、SQLite         | 多工作表、虚拟滚动或记录分页；不执行宏、不重算公式             |
+| 演示文稿     | PPTX、PPTM、PPT 等                       | Windows 本地借助 PowerPoint 生成静态页面；其他情况提供文字速览 |
+| 压缩包与容器 | ZIP、7Z、RAR、TAR、ASAR 等               | 目录浏览、筛选、内部支持文件继续预览                           |
+| CAD 与三维   | DXF、STL、OBJ、GLB、STEP 等              | 二维图纸或三维模型交互查看，支持范围因引擎而异                 |
+| 媒体与更多   | 音视频、字体、EML/MSG、Mermaid、Graphviz | 本地播放、字体试排、邮件阅读与图表绘制                         |
+| 未支持的格式 | 二进制文件及其他专有格式                 | 文件信息、内容签名与字节预览                                   |
 
-v0.9.5：文本编码、阅读字体与字号移到右侧“更多”菜单，按当前文件和预览模式显示适用选项；关闭并重新打开菜单保留选择。头部保留大纲、搜索、缩放与翻页，Word 页面继续遵循原文档字体。压缩包内预览与返回列表同步更新菜单选项。
+完整能力、文件大小限制与实测状态见 [格式对照清单](docs/FORMAT_PARITY.md) 和 [预览使用指南](docs/PREVIEW-GUIDE.md)。支持某个扩展名不代表完整还原其所有特性；Office 复杂排版、公式、缺失字体及部分图像变体可能存在差异。
 
-v0.9.4：预览工具与文件操作合并到 36px 头部；移除底部重复状态栏，正文区域增加约 64–66px。文件切换、Word/Markdown 大纲、字号/字体、文本搜索/编码、图片/PDF 缩放和翻页保留；默认应用打开、文件选择、预览模式和偏好设置收进“更多”菜单，取消最小化左侧独立偏好设置按钮。压缩包只显示当前层级的工具，返回时保留原目录与选择。
+## 下载与安装
 
-v0.9.3：大文本、代码、Markdown 和 HTML 全文读取，加载时显示动画与读取进度，完成后连续滚动显示，无需手动切换分段。Word/RTF 直接读取完整文件并加载页面，Word 不再因超过 32 MB 自动切换为跳过图片的文字速览。修复以中文为主的无 BOM UTF-16 文本识别；保留手动编码切换。
+从 **[最新发布页](https://github.com/likehao19/SpacePreview/releases/latest)** 选择对应系统与架构的安装包。
 
-v0.9.2：Word/Markdown 目录选中项保留背景和文字高亮，移除左侧竖线。修复 ZIP 内部文件 MIME 类型丢失造成 SVG 图片无法解码的问题，内部文件直接复用现有预览引擎，无需手动解压；单个条目的压缩/展开大小上限提高到 32 MB，保留 CRC 校验、解压边界与取消操作。加密、分卷及不支持的压缩算法仍需压缩软件处理，未接入的内容格式显示文件信息。
+| 系统            | 架构                  | 安装包                  |
+| --------------- | --------------------- | ----------------------- |
+| Windows 10 / 11 | x64                   | `windows-x64-setup.exe` |
+| macOS           | Apple Silicon / ARM64 | `macos-arm64.dmg`       |
+| macOS           | Intel / x64           | `macos-x64.dmg`         |
+| Linux           | x64                   | `.AppImage` 或 `.deb`   |
 
-v0.9.1：Windows 文件信息页读取真实系统图标，`.lnk` 快捷方式显示软件目标/自定义彩色图标及快捷方式箭头，EXE 显示程序图标。ZIP 条目按扩展名显示系统关联图标，文件夹显示系统文件夹图标；压缩包内条目没有本地路径，不能读取内部 EXE/LNK 的专属图标。图标异步加载并缓存，快速切换文件不串用图标，读取失败保留原有彩色图标。macOS 和浏览器保留现有图标。
+以上为发布文件名中的平台后缀，完整名称包含 `SpacePreview` 与版本号。旧版与更新记录见 [全部发布](https://github.com/likehao19/SpacePreview/releases)。
 
-v0.9.0：Finder 原生键盘监听，松开 Space 后读取选择并显示预览；辅助功能/Finder 自动化权限状态与明确授权入口；关闭预览返回 Finder、菜单栏驻留、⌘ 快捷键、Dock/打开方式接收文件；Apple Silicon/Intel 通用构建和 GitHub macOS 构建流程。前端以 Safari 15.4 为编译目标，补齐 PDF 在旧 WebKit 中缺少的 Promise API 与 Worker 回退。构建与验收步骤见 [MACOS.md](MACOS.md)。
+### Windows
 
-v0.8.0：统一 5px 滚动条（包括 Word/HTML iframe），头部缩至 36px，正文默认 18px/代码 15px；新蓝绿叠页图标同步到窗口、托盘、程序及安装包。文件信息页增加彩色文件图标、信息卡片与有颜色的字节查看。ZIP 采用接近资源管理器的详情列表：单击选择、双击/Enter 打开，类型/大小/压缩后大小列及排序；内部预览可点击头部「返回列表」或左箭头逐层返回，保留目录、筛选、页码、选中项和滚动位置。
+运行安装包后启动瞬览。在资源管理器或桌面选中文件，按 `Space` 即可预览。需要 Microsoft Edge WebView2 Runtime；关闭预览后应用驻留托盘，右键托盘图标可退出。开机自启动默认关闭，可在偏好设置中开启。
 
-v0.7.0：HTML 默认网页预览，保留内嵌 CSS、字体和静态布局，可切换阅读/源码，识别 meta charset；扩展代码文件与构建配置识别，新增 33 种高亮语法；增加 ASCII DXF 二维图纸、STL/OBJ 网格模型与 TIFF 图像预览。
+### macOS
 
-v0.6.0：头部增加最大化/恢复按钮；Markdown 参考 Typora，增加 14–20px 字号与现代/书籍字体；Word 页面背景、页数与缩放优化，遵循原字体；大纲可拖动宽度、搜索并自动跟随，统一明暗滚动条；新增 FB2 和 Jupyter Notebook v4 内容预览。
+打开对应架构的 DMG，将应用拖入「应用程序」。首次使用 Finder 快捷键需授予辅助功能与 Finder 自动化权限。
 
-v0.5.0：ZIP/ZIP64 按需读取目录与条目，目录导航、全包搜索、分页和 CRC 校验；大文本分段阅读；大 Office 读取 XML 并跳过图片，Word 默认文字速览；补齐模板、放映与 ZIP 容器扩展名。完整分析与格式建议见 [ANALYSIS.md](ANALYSIS.md)。
+当前安装包使用临时签名，尚未进行 Apple Developer ID 签名和公证；原生 Finder 行为及新增预览引擎仍需 Mac 真机验收。权限设置、构建与验收说明见 [MACOS.md](MACOS.md)。
 
-v0.4.2：按内容区分字体。代码采用 IDEA 风格明暗配色、14px 等宽字体（JetBrains Mono / Cascadia Mono / Consolas 回退）；TXT 使用 16px 阅读字体、宽行距与默认换行；Markdown 正文 15px、代码块 13px。Word 补充东亚主题字体解析，遵循原文档的字体/字号，缺失的本机字体仍由系统替代，不自动安装字体。
+### Linux
 
-v0.4.1：Markdown 与 Word 大纲跟随正文滚动；Word/RTF 文字速览可直接返回页面预览。缩放和收起大纲后继续跟踪当前章节。
-
-v0.4.0：Markdown / Word 左侧大纲与统一阅读界面；DOCX 页面排版、图片、表格、分页与缩放，保留文字速览；文本编码切换与内容识别；新增 RTF 富文本、HTML 阅读及 DOCM/DOTX/DOTM。文件读取改为二进制 IPC，避免大数组 JSON 传输。
-
-v0.3.0：头部由 68 px 缩至 42 px，底部由 42 px 缩至 30 px；内容工具栏缩至 34 px。文档减少留白，表格增加交替行底色，支持 CSV/TSV、OpenDocument 与 EPUB，并扩充源码、配置和字幕文件识别。保留 v0.2.2 的单次空格预览修复。
-
-v0.2.2 根据真实按键日志修复“下一个文件需要按两次 Space”：原版在按下时切换焦点，此后未收到松开事件，残留的长按状态吞掉了下一次按键。现在按下时记录请求，在松开时先清空状态再打开预览；预览内用 Space 关闭也在松开时执行。仍只需按一下，不必双击。v0.2.1 的焦点修复未能解决此根因。
-
-## 启动
-
-桌面版支持启动后检查更新，也可在「偏好设置 → 软件更新」手动检查、查看版本说明并下载安装。
-安装前校验签名；发布配置与首次升级说明见 [应用内更新](docs/UPDATING.md)。
-
-### Windows 桌面版
-
-从 [GitHub Releases](https://github.com/likehao19/SpacePreview/releases/latest) 下载 `windows-x64-setup.exe` 安装包。Mac Intel 和 Apple Silicon 分别选择 `macos-x64.dmg` 和 `macos-arm64.dmg`，将应用拖入「应用程序」。Linux x64 提供 `.deb` 和 AppImage；可拖入文件或使用 Ctrl+O 预览，尚未接入文件管理器空格唤起。
-
-已经构建时，可以直接双击：
-
-```text
-src-tauri/target/release/space-preview.exe
-```
-
-需要 Windows 10/11 和 Microsoft Edge WebView2 Runtime。启动后欢迎页显示「Space 预览已就绪」，在资源管理器或桌面选中文件、按 Space 即可预览。关闭预览后应用驻留托盘；右键托盘图标可重新打开或退出。不会自动修改开机启动或注册文件关联。
-
-### macOS 桌面版
-
-在 Mac 上运行 `npm ci`，安装 Rust 的 `aarch64-apple-darwin` 和 `x86_64-apple-darwin` 目标后，运行 `npm run desktop:build:mac` 生成通用 APP/DMG。首次使用需在应用设置中授权辅助功能及 Finder 自动化。当前 Windows 环境无法生成或验证 Mac 安装包，完整步骤见 [MACOS.md](MACOS.md)。
-
-### 从源码运行
-
-环境：Node.js 22.13+、Rust stable。Windows 构建还需要 Visual Studio C++ Build Tools、Windows SDK 和 WebView2。macOS 需要 Xcode Command Line Tools。
+Debian / Ubuntu 系选择 `.deb`，其他适配的发行版可选择 AppImage。AppImage 需先授予执行权限：
 
 ```sh
+chmod +x SpacePreview-*.AppImage
+# 然后运行下载的 AppImage，或在文件管理器中双击。
+```
+
+通过拖入文件或 `Ctrl+O` 预览。尚未接入文件管理器空格唤起；AppImage 支持应用内更新，`.deb` 用户需下载新安装包升级。
+
+## 快速上手
+
+1. 启动瞬览，Windows / macOS 在文件管理器中选中文件，按 `Space`。
+2. 使用 `←` / `→` 切换文件，在「更多」菜单中搜索、缩放或调整阅读设置。
+3. 再按 `Space` 或 `Esc` 关闭预览，回到原来的工作。
+
+也可直接拖入文件，或使用 `Ctrl / ⌘ + O`。Windows / macOS 可分别保存自定义预览键；文件夹、Everything 与第三方文件管理器尚未接入。
+
+| 快捷键（默认）                          | 操作                                         |
+| --------------------------------------- | -------------------------------------------- |
+| `Space`                                 | 文件管理器唤起预览；预览窗口内关闭           |
+| `Esc`                                   | 优先关闭菜单、设置，再关闭预览               |
+| `Shift + Space`                         | 请求 / 切换纯文本预览                        |
+| `←` / `→`                               | 上一个 / 下一个文件                          |
+| `Ctrl / ⌘ + O`                          | 选择文件                                     |
+| `Ctrl / ⌘ + Shift + C`                  | 复制路径；浏览器或压缩包内部文件仅复制文件名 |
+| `Ctrl / ⌘ + + / −` 或 `Ctrl / ⌘ + 滚轮` | 调整字号；Word / RTF / PDF 调整页面缩放      |
+| `Enter`                                 | 默认应用打开；不启动可执行文件或脚本         |
+
+输入框、媒体控件和聚焦按钮保留各自的按键行为。完整使用说明见 [预览使用指南](docs/PREVIEW-GUIDE.md)。
+
+## 文件与安全边界
+
+文件内容在本地处理；HTML 清理后展示，不执行文档脚本、不加载网络资源。本地 HTML 可在读取预算内加载同目录及子目录的 CSS、图片与字体。
+
+单文件上限默认 **256 MB**，可在偏好设置调整为 **16–1024 MB**；压缩包内部文件同样受限，各格式仍有独立解析限制。文本、代码等部分格式会完整读取，占用内存与文件内容有关，尚未完成 GB 级真实文件性能验证。
+
+当前 Web Worker 可取消解析，但不等于操作系统级沙箱，也不提供进程级 CPU / 内存隔离。更多实现细节见 [架构与安全边界](docs/PREVIEW-GUIDE.md#架构与安全边界)。
+
+## 从源码运行
+
+环境：Node.js **22.13+**、Rust stable。Windows 还需要 Visual Studio C++ Build Tools、Windows SDK 和 WebView2；macOS 需要 Xcode Command Line Tools。
+
+```sh
+git clone https://github.com/likehao19/SpacePreview.git
+cd SpacePreview
 npm ci
 npm run desktop
 ```
 
-浏览器体验（真实本地文件选择、拖入与内置示例）：
+浏览器开发模式：
 
 ```sh
 npm run dev
 # http://127.0.0.1:1420
 ```
 
-浏览器没有资源管理器全局快捷键、真实文件路径和默认应用打开权限。左右键切换这次选择的文件；桌面版选中单个文件时会载入同目录文件。
+浏览器版支持本地文件选择、拖入和内置示例，不具备文件管理器全局快捷键、真实路径与默认应用打开权限。
 
-## 当前支持
-
-### v0.10.0 新增内容预览
-
-| 类型                 | 能力                                                                                                                            | 边界                                                                                                                |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 专业图像             | PSD/PSB、HEIC/HEIF、DDS、EXR、HDR、JPEG 2000、JPEG XL、QOI、TGA、PCX、PNM、FITS、XCF、部分相机 RAW 等                           | 本地 WASM 解码；页/图层选择、缩放、旋转；不是 Photoshop 编辑器；RAW 变体需逐一实测                                  |
-| 图标与矢量           | ICNS、ANI、SVGZ、WMF、EMF                                                                                                       | ICNS 支持 PNG/JP2 图块；ANI 逐帧静态查看；WMF/EMF 为 GDI 子集，部分 EMF+ 效果可能不同                               |
-| 压缩包与容器         | RAR4/5、7Z、TAR、TGZ、BZIP2、XZ、Zstandard、LZIP、LZMA、AR、CPIO、XAR；ASAR、CRX2/3、CFB、Chromium PAK、MSI/MSP 与 ZIP 类安装包 | 文件/目录列表、筛选、内部文本/图片继续预览、返回保持选择；独立 GZIP/BZIP2/XZ/Zstandard 也可打开；单项上限见格式清单 |
-| CAD / 三维           | PLY、3DS、FBX、3MF、BLEND、GLB、GLTF、DAE、LWO、PCD、STEP/STP、IGES/IGS、BREP                                                   | 三角网格/点云交互；最多 100 万三角面；外部贴图、外部几何文件和动画不加载；不支持 DWG、SolidWorks 原生工程           |
-| 旧版 Office / 数据表 | DOC/DOT、PPT/PPS/POT、XLS/XLSB/XLT/XLW、DBF、DIF、SYLK                                                                          | DOC 为文字速览；PPT 在 Windows 本地可复用 PowerPoint 原始页面转换；旧表格完整行读取、虚拟滚动，不执行宏、不计算公式 |
-| 数据库与字体         | SQLite、GPKG/MBTiles 的数据库表；TTF/OTF/WOFF/WOFF2/TTC                                                                         | 数据库只读表/视图、结构与所有记录分页；字体实际试排、字形和集合字体切换；不是地图或数据库编辑器                     |
-| 邮件 / 网页存档      | EML、MSG、MHT/MHTML                                                                                                             | 正文、中文编码、附件继续预览；MHTML 内嵌图片/样式；外部资源和脚本禁用                                               |
-| 文档 / 图表 / 动画   | AsciiDoc、Mermaid、Graphviz DOT/GV、Lottie JSON/TGS/dotLottie、PSV                                                              | 文档大纲；本地图表绘制；动画播放/暂停；图表及动画的外部资源不加载                                                   |
-| 设计预览图           | KRA、Sketch、XD、XMind、ZIP 类型 FIG/CDR/PIX/PIP、PDN3                                                                          | 显示文件内置预览图，不解析完整设计画布；没有预览图时明确提示                                                        |
-
-| 类型                                                | 能力                                                                         | 边界                                                                                                                                                                                              |
-| --------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 图片                                                | JPG / PNG / GIF / WebP / SVG / BMP / ICO / AVIF，缩放、平移、旋转、双击 100% | 依赖系统 WebView 解码；默认适应视图                                                                                                                                                               |
-| PDF                                                 | 本地 PDF.js 渲染、翻页、缩放、文字搜索、内置目录跳转                         | 搜索最多 1,000 页 / 10 秒；暂无密码输入，不执行 PDF 脚本                                                                                                                                          |
-| 文本与代码                                          | 语法高亮、行号、JSON 格式化、匹配行高亮、自动换行                            | 全文读取，连续滚动及全文匹配计数，大文本支持匹配文字高亮；受可用内存和 WebView 排版能力影响，未验证 GB 级文件；UTF-8、UTF-16 与 GB18030 自动识别；可手动选择 Big5、Shift-JIS、Windows-1252 等编码 |
-| Markdown                                            | 左侧大纲、任务列表、表格、代码高亮、内部标题跳转                             | 禁止远程图片和跳转，不执行嵌入脚本；MDX 按 Markdown 处理                                                                                                                                          |
-| DOCX / DOCM / DOTX / DOTM                           | 页面样式、图片、表格、显式分页、缩放及标题大纲；可切换文字速览               | 完整读取并默认页面预览；展开单部分 16 MB、合计 64 MB 校验仍保留；不执行宏；复杂浮动排版、图表、公式与缺失字体可能与 Word 不同                                                                     |
-| RTF / HTML                                          | RTF 富文本样式；HTML 网页原始内嵌样式、阅读大纲与源码切换                    | 全文加载，受可用内存和排版能力影响；HTML 不执行脚本或加载外部/相对资源                                                                                                                            |
-| DXF                                                 | 线段、多段线（含 bulge）、圆/弧/椭圆、文字、普通块变换；图层开关、缩放和平移 | ASCII DXF，8 MB / 50,000 图元 / 250,000 顶点；XY 模型空间，非工程精度查看器；样条、标注、三维实体、外部参照和阵列块暂不显示                                                                       |
-| STL / OBJ                                           | 三维网格旋转、缩放、平移；STL 二进制/ASCII，OBJ 正负索引及多边形三角化       | 16 MB / 250,000 三角面 / OBJ 500,000 顶点；需要 WebGL，不加载材质和贴图；不支持参数化实体                                                                                                         |
-| TIFF                                                | 多页解码、翻页、缩放、平移和旋转                                             | 32 MB / 200 页 / 每页 1,600 万像素；部分 TIFF 压缩或色彩变体可能不能解码                                                                                                                          |
-| XLSX / XLSM                                         | 多工作表、稀疏单元格、共享字符串、日期、保存的公式结果、虚拟滚动             | 32 MB；最多 100 个工作表，每表 5,000 行 / 100 列；不执行宏、不重新计算公式                                                                                                                        |
-| PPTX / PPTM                                         | Windows 本地原始页面、图片与字体、连续滚动、缩放、文字选择；可切换文字速览   | 页面预览需已安装/激活 PowerPoint；静态页面不播放动画；文字速览最多 500 页                                                                                                                         |
-| 音视频                                              | 系统支持的 MP3 / WAV / OGG / FLAC / AAC / MP4 / WebM / MOV 等，原生播放控件  | 能否播放取决于内部编码；不将整个媒体文件读入 JS 内存                                                                                                                                              |
-| ZIP / ZIP64 / JAR / APK / IPA / CBZ / WHL / VSIX 等 | 目录列表、大小、筛选，点击内部文件继续预览；左箭头返回压缩包                 | 按需读取，目录 16 MB / 100,000 条目；内部压缩与展开均最多 32 MB；只支持单卷、Stored/Deflate，不支持密码                                                                                           |
-| 未知格式                                            | 文件大小、MIME、时间、Magic bytes、前 512 字节的十六进制                     | 尚未接入的专有格式保留通用文件信息；完整缺口见格式对照清单                                                                                                                                        |
-
-### v0.3.0 新增格式
-
-| 类型                  | 能力                                                             | 边界                                                                         |
-| --------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| CSV / TSV / TAB / PSV | 完整读取、只读表格、虚拟滚动；支持引号内换行和转义引号           | 保留原始值，不执行公式；受可用内存影响，没有原来的行列截断                   |
-| ODT / OTT             | 标题、段落、文字与表格                                           | 32 MB；不还原图片与复杂排版                                                  |
-| ODS / OTS             | 多工作表、重复单元格、日期和已保存结果                           | 32 MB；100 表，每表 5,000 行 / 100 列；总展开上限 500,000 单元格；不计算公式 |
-| ODP / OTP             | 幻灯片标题、正文与翻页                                           | 32 MB / 500 页；不还原图片、动画及原始布局                                   |
-| EPUB                  | 按阅读顺序显示章节，章节选择器，文字阅读                         | 32 MB / 300 章；不显示图片，不访问外部资源，不支持 DRM                       |
-| 更多文本扩展名        | MJS/CJS、Kotlin、Ruby、Lua、配置、字幕、LaTeX 等按文本或代码预览 | 语法高亮取决于内置语言；IPYNB 使用独立 Notebook 阅读引擎，不执行代码         |
-
-未知扩展名会检查内容签名和可读性：例如纯文本 license.dat 按文本预览，真正二进制 .dat 仍显示文件信息。编码自动检测是启发式判断，识别不准时可在更多菜单手动切换。DOCX 大纲优先采用标题样式/大纲级别，没有正式层级时可识别短加粗段落和章节编号；旧版 DOC 的文字速览不保留标题样式。Markdown 不加载相对路径或远程图片。外部可执行插件尚未启用，内置引擎注册表位于 `src/lib/files.ts`。
-
-## 快捷键
-
-| 按键                   | 操作                                 |
-| ---------------------- | ------------------------------------ |
-| Space / Esc            | 关闭预览（桌面版隐藏窗口）           |
-| Shift + Space          | 切换纯文本预览                       |
-| ← / →                  | 上一个 / 下一个文件                  |
-| Ctrl / Cmd + O         | 选择文件                             |
-| Ctrl / Cmd + Shift + C | 复制路径，浏览器中仅复制文件名       |
-| Enter                  | 默认应用打开；不启动可执行文件或脚本 |
-| Ctrl / Cmd + + 或 −    | 增大/减小当前文字，每次 2px          |
-| Ctrl / Cmd + 滚轮上/下 | 增大/减小当前文字，每次 2px          |
-
-滚轮或加减号调整时，内容区底部实时显示字号（Word/RTF/PDF 显示页面缩放百分比），停止调整 2 秒后自动消失。文字预览默认 16px，“更多”菜单提供默认、现代、书籍、等宽字体以及 10–40px 字号。适用于 TXT、代码/配置、Markdown、电子书、HTML/邮件、表格/数据库及文档文字速览；代码默认等宽。设置仅作用于当前文件，切换新文件恢复默认；切换文字模式保留选择。Word/RTF 原样页面与 PDF 保留文档字体，这两组快捷键改为页面缩放；HTML 网页保留标题与正文相对大小并随字号整体缩放。键盘主区的 Ctrl + = 和数字小键盘加减号也可使用。偏好设置打开或录入预览快捷键时暂停字号快捷键。
-
-输入框与媒体控件保留自己的键盘行为；聚焦按钮时 Space 激活按钮。复制文件到系统剪贴板（Ctrl+C）尚未实现。
-
-## Windows 空格预览
-
-**使用桌面程序，而不是浏览器页面。无需任何 PowerShell 脚本。**
-
-1. 双击 `space-preview.exe`，确认右上角显示「Space 预览已就绪」。
-2. 在 Windows 资源管理器或桌面选中一个普通文件，按 Space；多选最多载入 100 个文件。
-3. 再按 Space / Esc 隐藏预览；Shift + Space 请求纯文本预览。
-4. 设置中的「资源管理器空格预览」开关可启停监听；退出托盘后不再监听。
-
-内置 Rust 监听只在 Explorer/桌面的文件内容列表拥有焦点时接收 Space。搜索框、地址栏、重命名输入框、导航树和其他应用保留原按键行为。Shell COM 读取在独立线程运行，不阻塞键盘回调。Windows 11 使用可见 Shell View 区分活动标签页。
-
-本机已通过 **Shell COM 连接、键盘 Hook 安装/卸载和原生编译测试**。资源管理器各视图、多标签页与第三方扩展的完整端到端兼容性矩阵仍需实机验收。文件夹、Everything 与第三方文件管理器暂未接入；Finder 见 [MACOS.md](MACOS.md)。
-
-## 架构与安全边界
-
-```text
-Windows 原生键盘线程 → Shell COM 线程 → Tauri Preview Window
-                                  │
-                         内置引擎注册表
-                                  │
-          ┌───────────────────────┼──────────────────────┐
-     图片 / 媒体             PDF.js Worker         Disposable Worker
-     本地 asset URL            按页渲染        文本 / Office / ZIP
-                                  │
-                         Rust 有界文件读取
-```
-
-- 本地文件只读，不上传文件内容。正式桌面包的 CSP 限制远程连接；文档 HTML 经 DOMPurify 清理，禁止外部资源、脚本与表单。
-- Asset 协议初始作用域为空，文件进入本地预览后按具体文件授权；同目录导航会授权该目录中载入列表的普通文件。授权随应用退出清空。
-- Worker 可中止，小请求解析超过 10 秒、大于 512 KB 的请求超过 120 秒会终止；Word 最终 DOM 排版和 RTF 渲染在主线程，尚不具备同等硬超时；切换文件、关闭预览时终止旧解析。关闭预览会卸载媒体，避免隐藏后继续播放。
-- ZIP 默认只读目录，内部预览只在内存中解压；解压按压缩数据小块推进，并检查实际输出大小。Office 解析会检查声明和实际展开大小，XML 拒绝 DTD/自定义实体。
-- **当前 Worker 是 Web Worker，不是操作系统级独立沙箱。** 解析输出大小限制不等于进程级内存配额。尚未实现进程级 CPU/内存限制与独立 Rust parser worker，不能宣称具备完整恶意文件隔离能力。
-- 100 ms 唤起、50 MB 空闲内存等是产品目标，尚未做基准测试，不作为当前性能承诺。
-
-## 构建与验证
+### 构建与验证
 
 ```sh
 npm test
-npm run test:preview
 npm run build
+npm run test:preview
 cargo test --manifest-path src-tauri/Cargo.toml --lib
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
-npm run desktop:build -- --no-bundle
+npm run desktop:build
 ```
 
-Windows 安装包：`npm run desktop:build`（NSIS 工具首次构建需要网络）。macOS 通用 APP/DMG：在 Mac 上执行 `npm run desktop:build:mac`；当前未做 macOS 编译、签名/公证和 Finder 实机验收。
+macOS 通用构建在 Mac 上执行 `npm run desktop:build:mac`。平台构建要求与手动回归记录见 [TESTING.md](TESTING.md)、[MACOS.md](MACOS.md) 和 [应用内更新](docs/UPDATING.md)。
 
-Windows 本机系统接口测试（需要交互式用户会话）：
+## 官网
 
-```powershell
-cargo test --manifest-path src-tauri/Cargo.toml --lib windows_agent::tests -- --include-ignored
+官网位于 **[website/](website/)**，使用独立的 HTML、CSS 和 JavaScript，无构建步骤。直接打开 [website/index.html](website/index.html)，或运行：
+
+```sh
+python -m http.server 8080 --directory website
 ```
 
-## 下一阶段
+访问 `http://localhost:8080`。网站包含可切换的预览界面示意、功能介绍、格式说明、平台下载和 LinuxDo 社区入口。部署说明见 [官网 README](website/README.md)。
 
-1. Windows 实机兼容性矩阵、开机启动与延迟测量。
-2. Office 高保真排版、图片与图表，PDF 文本选区和密码输入。
-3. 原生独立 Worker 沙箱、进程级资源限制、更大文件的流式预览。
-4. macOS 原生编译与 Finder 实机验收、签名、公证；之后再考虑系统 Quick Look Extension。
-5. 版本化插件协议、权限模型与插件加载；之后再扩展 RAW、PSD、SQLite 等格式。
+## 交流与贡献
 
-所有源代码文件采用 UTF-8 无 BOM。
+欢迎通过 [GitHub Issues](https://github.com/likehao19/SpacePreview/issues) 提交可复现的问题和具体功能建议，也欢迎到 **[LinuxDo 社区](https://linux.do/)** 交流使用体验。
 
-详细验证记录与手动回归步骤见 [TESTING.md](TESTING.md)。
+反馈问题时，请提供系统版本、瞬览版本、文件格式、复现步骤和相关日志；分享样本前先移除私人信息。提交代码前请运行与改动相关的测试与构建检查。所有源代码文件使用 UTF-8 无 BOM。
 
-## 当前大文件边界
+技术栈：Tauri 2、Rust、React 19、TypeScript，以及面向各格式的本地预览引擎。第三方组件说明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
-文本、代码、Markdown、HTML 和 RTF 读取完整文件后显示，不再提供手动分段或截断前缀；大文本使用连续视图，换行开启时隐藏行号以避免错位，查找计数针对全文。读取与解析过程中显示加载动画。完整内容需要占用内存，WebView 的布局和滚动尺寸仍有实际边界，尚未完成 GB 级实机性能验证。
-
-Word 默认完整读取并渲染页面和图片，仍校验展开单部分 16 MB、合计 64 MB。主动切换 Word/PPTX 文字速览以及大 XLSX/OpenDocument 时仍按需读取 XML，合计 31 MB / 1,000 部分，每部分压缩与展开最多 8 MB；Windows PPTX 原始页面由本机 PowerPoint 读取源文件。CSV/TSV 完整加载全部行列，不再受旧 8 MB/5000 行/100 列限制；FB2/Notebook 8 MB、XLSX/ODS 表格行列限制、EPUB 32 MB 和 ZIP 单条目 32 MB 限制保留；压缩包搜索针对全目录，列表每页 100 项。40 MB Word 合成样本主要验证大容器路由和引用图片，不能等同于复杂真实文档性能基准。
-
-## v0.6.0 新阅读功能
-
-左侧大纲可拖动分隔线调整 160–320px 宽度，聚焦分隔线可用左右键调整；超过 8 条标题时提供搜索框。正文滚动时当前章节自动在大纲中保持可见。Word 页面保持原字体/字号，显示当前页/总页数；文字阅读区默认 16px，可在更多菜单中选择字体与 10–40px 字号。
-
-FB2 最多 8 MB，显示正文、标题层级及强调文字，暂不显示封面、图片、脚注；压缩的 FB2.ZIP 先进入 ZIP 目录再打开 FB2。Notebook 仅支持 v4，最多 8 MB/500 个单元格/1,000,000 正文和输出字符，显示 Markdown、代码与保存的文本输出，不执行单元格，不显示交互图表/图片输出。
-
-### 开机自启动
-
-在偏好设置开启「开机自启动」，登录系统后在托盘（Windows）或菜单栏（macOS）运行，不弹出窗口；再次手动打开或选文件按预览快捷键即可显示预览。默认关闭，开关直接读取系统启动项状态。Windows 使用当前用户 Run 项；macOS 使用 LaunchAgent。修改安装/便携目录后，请在新位置重新关闭再开启开关以更新启动路径。浏览器版无法管理系统启动项。
-
-### 偏好设置与按键说明
-
-Windows/macOS 预览键分别保存、重置；Ctrl/Command + O、C、加减号保留给软件操作，不能设为预览键。方向键和 Enter 只在没有 Ctrl/Alt/Command/Shift 时执行切换或默认打开。Esc 优先关闭更多菜单、偏好设置；输入框和媒体控件保留自己的按键行为。普通 Space 聚焦按钮时激活按钮，Shift + 预览键切换文本/源码模式。已支持的 Office、OpenDocument、EPUB 使用内容提取引擎，不将压缩包字节当正文；其他不能直接读成文字的二进制格式显示文件信息。
-
-失去焦点时关闭只在文件预览中生效，偏好设置和软件自己的文件选择对话框保持打开。文件管理器快捷键开关仅控制 Explorer/Finder 唤起，不禁用预览窗口内的操作。复制路径适用于本地文件，压缩包内/浏览器文件仅复制文件名；默认打开需要本地路径，且不会执行程序或脚本。
+历史迭代记录已移至 [历史更新](docs/HISTORY.md)，当前版本变更见 [RELEASE-NOTES.md](RELEASE-NOTES.md)。本 README 的信息组织参考 [InkNote](https://github.com/likehao19/InkNote)。
