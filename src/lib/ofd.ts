@@ -1,3 +1,4 @@
+import { ofdResources } from './ofd-resources';
 import {
   inflateZipEntry,
   parseZipDirectory,
@@ -22,7 +23,10 @@ export interface OfdDocument {
   pages: OfdPage[];
   box: OfdBox;
   documents: number;
-  renderPage(index: number): Promise<{ svg: string; box: OfdBox }>;
+  renderPage(
+    index: number,
+    signal?: AbortSignal,
+  ): Promise<{ svg: string; box: OfdBox; release: () => void }>;
   pageText(index: number): Promise<string>;
   close(): void;
 }
@@ -235,14 +239,11 @@ export async function openOfd({
       throw new Error(`${path} 不是有效的 XML。`);
     return parsed.documentElement;
   };
-  const faces: FontFace[] = [];
-  const urls: string[] = [];
-  const nested: OfdDocument[] = [];
+  const cleanups = new Set<() => void>();
   const blobUrl = (data: Uint8Array) => {
     const mime = imageMime(data);
     if (!mime || closed) return;
     const url = URL.createObjectURL(new Blob([data as Uint8Array<ArrayBuffer>], { type: mime }));
-    urls.push(url);
     return url;
   };
 
@@ -317,44 +318,44 @@ export async function openOfd({
       ),
     );
 
-    const fontLoads = new Map<string, Promise<void>>();
-    const ensureFont = (id: string) => {
-      const font = fonts.get(id);
-      if (!font?.file || typeof FontFace === 'undefined') return;
-      let pending = fontLoads.get(id);
-      if (!pending) {
-        const file = font.file;
-        pending = bytes(file)
-          .then(async (data) => {
-            const face = new FontFace(
-              `${tag}-${docIndex}-${id.replace(/\W/g, '')}`,
-              data.slice().buffer,
-            );
-            await face.load();
-            if (closed) return;
-            document.fonts.add(face);
-            faces.push(face);
-          })
-          // Broken or non-OpenType subsets fall back to the system families listed after them.
-          .catch(() => {});
-        fontLoads.set(id, pending);
-      }
-      return pending;
-    };
-    const images = new Map<string, Promise<string | undefined>>();
-    const ensureImage = (id: string) => {
-      let pending = images.get(id);
-      if (!pending) {
+    const fontLoads = ofdResources(
+      async (id) => {
+        const font = fonts.get(id);
+        if (!font?.file || typeof FontFace === 'undefined') return;
+        try {
+          const data = await bytes(font.file);
+          const face = new FontFace(
+            `${tag}-${docIndex}-${id.replace(/\W/g, '')}`,
+            data.slice().buffer,
+          );
+          await face.load();
+          if (closed) return;
+          document.fonts.add(face);
+          return face;
+        } catch {
+          /* Unsupported subsets use the system fallback. */
+        }
+      },
+      (face) => {
+        if (face) document.fonts.delete(face);
+      },
+    );
+    const images = ofdResources(
+      async (id) => {
         const path = media.get(id);
-        pending = path
-          ? bytes(path)
-              .then(blobUrl)
-              .catch(() => undefined)
-          : Promise.resolve(undefined);
-        images.set(id, pending);
-      }
-      return pending;
-    };
+        if (!path) return;
+        try {
+          return blobUrl(await bytes(path));
+        } catch {
+          return;
+        }
+      },
+      (url) => {
+        if (url) URL.revokeObjectURL(url);
+      },
+    );
+    cleanups.add(fontLoads.clear);
+    cleanups.add(images.clear);
     const xmlCache = new Map<string, Promise<Element | undefined>>();
     const cachedXml = (path: string) => {
       let pending = xmlCache.get(path);
@@ -387,7 +388,6 @@ export async function openOfd({
       value: string;
     }
     let stamps: Promise<Stamp[]> | undefined;
-    const sealCache = new Map<string, Promise<string | undefined>>();
     const pageStamps = () =>
       (stamps ??= (async () => {
         const found: Stamp[] = [];
@@ -412,36 +412,48 @@ export async function openOfd({
         }
         return found;
       })().catch(() => []));
-    const sealMarkup = (stamp: Stamp) => {
-      let pending = sealCache.get(stamp.value);
-      if (!pending) {
-        pending = bytes(stamp.value)
-          .then(async (data) => {
-            const picture = sealPicture(data);
-            if (!picture) return;
-            if (picture.kind === 'image') {
-              const url = blobUrl(picture.bytes);
-              return url && `<image href="${url}" preserveAspectRatio="none" />`;
-            }
-            const inner = picture.bytes;
-            const seal = await openOfd({
-              size: inner.length,
-              read: async (offset, length) => inner.subarray(offset, offset + length),
-              signal,
-            });
-            if (closed) {
-              seal.close();
-              return;
-            }
-            nested.push(seal);
-            const { svg } = await seal.renderPage(0);
-            return svg;
-          })
-          .catch(() => undefined);
-        sealCache.set(stamp.value, pending);
-      }
-      return pending;
-    };
+    const sealCache = ofdResources(
+      async (path) => {
+        let seal: OfdDocument | undefined;
+        try {
+          const picture = sealPicture(await bytes(path));
+          if (!picture) return;
+          if (picture.kind === 'image') {
+            const url = blobUrl(picture.bytes);
+            return url
+              ? {
+                  svg: `<image href="${url}" preserveAspectRatio="none" />`,
+                  release: () => URL.revokeObjectURL(url),
+                }
+              : undefined;
+          }
+          const inner = picture.bytes;
+          seal = await openOfd({
+            size: inner.length,
+            read: async (offset, length) => inner.subarray(offset, offset + length),
+            signal,
+          });
+          if (closed) {
+            seal.close();
+            return;
+          }
+          const page = await seal.renderPage(0);
+          const opened = seal;
+          return {
+            svg: page.svg,
+            release: () => {
+              page.release();
+              opened.close();
+            },
+          };
+        } catch {
+          seal?.close();
+          return;
+        }
+      },
+      (seal) => seal?.release(),
+    );
+    cleanups.add(sealCache.clear);
 
     const paramOf = (id: string | null, inherited: Paint, depth = 0): Paint => {
       const param = id ? params.get(id) : undefined;
@@ -480,6 +492,7 @@ export async function openOfd({
       inherited: Paint,
       out: string[],
       budget: { left: number },
+      resolvedImages: Map<string, string>,
       depth = 0,
     ) => {
       if (depth > 32) return;
@@ -490,7 +503,7 @@ export async function openOfd({
         switch (element.localName) {
           case 'Layer':
           case 'PageBlock':
-            render(element, local, out, budget, depth + 1);
+            render(element, local, out, budget, resolvedImages, depth + 1);
             break;
           case 'TextObject': {
             const font = fonts.get(element.getAttribute('Font') ?? '');
@@ -574,30 +587,12 @@ export async function openOfd({
             const content = child(unit, 'Content');
             if (!content) break;
             out.push(`<g${frame(element)}>`);
-            render(content, local, out, budget, depth + 1);
+            render(content, local, out, budget, resolvedImages, depth + 1);
             out.push('</g>');
             break;
           }
         }
       }
-    };
-    // Filled by renderPage before drawing so the synchronous walk can look image URLs up directly.
-    const resolvedImages = new Map<string, string>();
-    const prepare = async (elements: Element[]) => {
-      const work: Promise<unknown>[] = [];
-      for (const element of elements) {
-        for (const object of all(element, 'TextObject'))
-          work.push(ensureFont(object.getAttribute('Font') ?? '') ?? Promise.resolve());
-        for (const object of all(element, 'ImageObject')) {
-          const id = object.getAttribute('ResourceID') ?? '';
-          work.push(
-            ensureImage(id).then((url) => {
-              if (url) resolvedImages.set(id, url);
-            }),
-          );
-        }
-      }
-      await Promise.all(work);
     };
     const loadPage = async (index: number) => {
       const page = pages[index];
@@ -612,73 +607,147 @@ export async function openOfd({
     return {
       pages,
       box,
-      async renderPage(index: number) {
-        const content = await loadPage(index);
-        const page = pages[index];
-        const pageBox = parseBox(text(child(child(content, 'Area'), 'PhysicalBox'))) ?? box;
-        const background: Element[] = [];
-        const foreground: Element[] = [];
-        for (const template of children(content, 'Template')) {
-          const path = templates.get(template.getAttribute('TemplateID') ?? '');
-          const parsed = path ? await cachedXml(path) : undefined;
-          if (!parsed) continue;
-          await Promise.all(
-            children(parsed, 'PageRes').map((res) => loadRes(locate(dirname(path!), text(res)))),
-          );
-          (template.getAttribute('ZOrder') === 'Foreground' ? foreground : background).push(parsed);
-        }
-        const annotationRoots: { element: Element; box: number[] }[] = [];
-        for (const path of (await pageAnnotations()).get(page.id) ?? []) {
-          const list = await cachedXml(path);
-          for (const annot of children(list, 'Annot')) {
-            if (annot.getAttribute('Visible') === 'false') continue;
-            const appearance = child(annot, 'Appearance');
-            if (appearance)
-              annotationRoots.push({
-                element: appearance,
-                box: numbers(appearance.getAttribute('Boundary')),
-              });
+      async renderPage(index: number, pageSignal?: AbortSignal) {
+        const releases: (() => void)[] = [];
+        let released = false;
+        const release = () => {
+          if (released) return;
+          released = true;
+          pageSignal?.removeEventListener('abort', release);
+          cleanups.delete(release);
+          for (const drop of releases) drop();
+          releases.length = 0;
+        };
+        const check = () => {
+          signal.throwIfAborted();
+          pageSignal?.throwIfAborted();
+          if (closed || released) throw new DOMException('已取消', 'AbortError');
+        };
+        cleanups.add(release);
+        pageSignal?.addEventListener('abort', release, { once: true });
+        try {
+          check();
+          const content = await loadPage(index);
+          check();
+          const page = pages[index];
+          const pageBox = parseBox(text(child(child(content, 'Area'), 'PhysicalBox'))) ?? box;
+          const background: Element[] = [];
+          const foreground: Element[] = [];
+          for (const template of children(content, 'Template')) {
+            const path = templates.get(template.getAttribute('TemplateID') ?? '');
+            const parsed = path ? await cachedXml(path) : undefined;
+            check();
+            if (!parsed) continue;
+            await Promise.all(
+              children(parsed, 'PageRes').map((res) => loadRes(locate(dirname(path!), text(res)))),
+            );
+            (template.getAttribute('ZOrder') === 'Foreground' ? foreground : background).push(
+              parsed,
+            );
           }
-        }
-        const seals = (await pageStamps()).filter((stamp) => stamp.page === page.id);
-        const sealMarkups = await Promise.all(seals.map(sealMarkup));
-        await prepare([
-          ...background,
-          content,
-          ...foreground,
-          ...annotationRoots.map((a) => a.element),
-        ]);
-        signal.throwIfAborted();
-        const out: string[] = [
-          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${pageBox.join(' ')}" width="100%" height="100%" preserveAspectRatio="none" style="white-space:pre">`,
-        ];
-        const budget = { left: OBJECT_LIMIT };
-        for (const layer of [...background, content, ...foreground])
-          render(child(layer, 'Content') ?? layer, {}, out, budget);
-        for (const annot of annotationRoots) {
-          out.push(
-            annot.box.length >= 2
-              ? `<g transform="translate(${annot.box[0]} ${annot.box[1]})">`
-              : '<g>',
+          const annotationRoots: { element: Element; box: number[] }[] = [];
+          for (const path of (await pageAnnotations()).get(page.id) ?? []) {
+            const list = await cachedXml(path);
+            check();
+            for (const annot of children(list, 'Annot')) {
+              if (annot.getAttribute('Visible') === 'false') continue;
+              const appearance = child(annot, 'Appearance');
+              if (appearance)
+                annotationRoots.push({
+                  element: appearance,
+                  box: numbers(appearance.getAttribute('Boundary')),
+                });
+            }
+          }
+          const seals = (await pageStamps()).filter((stamp) => stamp.page === page.id);
+          check();
+          const sealMarkups = await Promise.all(
+            seals.map((stamp) => {
+              const held = sealCache.acquire(stamp.value);
+              releases.push(held.release);
+              return held.value.then((value) => value?.svg);
+            }),
           );
-          render(annot.element, {}, out, budget);
-          out.push('</g>');
+          check();
+          const resolvedImages = new Map<string, string>();
+          const fontIds = new Set<string>(),
+            imageIds = new Set<string>(),
+            compositeIds = new Set<string>();
+          let remaining = OBJECT_LIMIT;
+          const collect = (element: Element, depth = 0) => {
+            if (depth > 32 || remaining-- <= 0) return;
+            if (element.getAttribute('Visible') === 'false') return;
+            if (element.localName === 'TextObject') fontIds.add(element.getAttribute('Font') ?? '');
+            if (element.localName === 'ImageObject')
+              imageIds.add(element.getAttribute('ResourceID') ?? '');
+            if (element.localName === 'CompositeObject') {
+              const id = element.getAttribute('ResourceID') ?? '';
+              const content = child(composites.get(id), 'Content');
+              if (content && !compositeIds.has(id)) {
+                compositeIds.add(id);
+                collect(content, depth + 1);
+              }
+            }
+            for (const child of Array.from(element.children)) collect(child, depth + 1);
+          };
+          const roots = [
+            ...background,
+            content,
+            ...foreground,
+            ...annotationRoots.map((a) => a.element),
+          ];
+          roots.forEach((root) => collect(root));
+          const work: Promise<unknown>[] = [];
+          for (const id of fontIds) {
+            const held = fontLoads.acquire(id);
+            releases.push(held.release);
+            work.push(held.value);
+          }
+          for (const id of imageIds) {
+            const held = images.acquire(id);
+            releases.push(held.release);
+            work.push(
+              held.value.then((url) => {
+                if (url) resolvedImages.set(id, url);
+              }),
+            );
+          }
+          await Promise.all(work);
+          check();
+          const out: string[] = [
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${pageBox.join(' ')}" width="100%" height="100%" preserveAspectRatio="none" style="white-space:pre">`,
+          ];
+          const budget = { left: OBJECT_LIMIT };
+          for (const layer of [...background, content, ...foreground])
+            render(child(layer, 'Content') ?? layer, {}, out, budget, resolvedImages);
+          for (const annot of annotationRoots) {
+            out.push(
+              annot.box.length >= 2
+                ? `<g transform="translate(${annot.box[0]} ${annot.box[1]})">`
+                : '<g>',
+            );
+            render(annot.element, {}, out, budget, resolvedImages);
+            out.push('</g>');
+          }
+          seals.forEach((stamp, i) => {
+            const markup = sealMarkups[i];
+            if (!markup) return;
+            const [x, y, w, h] = stamp.box;
+            // Nested seal SVGs carry their own viewBox; raster seals fill the stamp boundary.
+            out.push(
+              markup.startsWith('<svg')
+                ? markup
+                    .replace('<svg', `<svg x="${x}" y="${y}" width="${w}" height="${h}"`)
+                    .replace(' width="100%" height="100%"', '')
+                : markup.replace('<image', `<image x="${x}" y="${y}" width="${w}" height="${h}"`),
+            );
+          });
+          out.push('</svg>');
+          return { svg: out.join(''), box: pageBox, release };
+        } catch (error) {
+          release();
+          throw error;
         }
-        seals.forEach((stamp, i) => {
-          const markup = sealMarkups[i];
-          if (!markup) return;
-          const [x, y, w, h] = stamp.box;
-          // Nested seal SVGs carry their own viewBox; raster seals fill the stamp boundary.
-          out.push(
-            markup.startsWith('<svg')
-              ? markup
-                  .replace('<svg', `<svg x="${x}" y="${y}" width="${w}" height="${h}"`)
-                  .replace(' width="100%" height="100%"', '')
-              : markup.replace('<image', `<image x="${x}" y="${y}" width="${w}" height="${h}"`),
-          );
-        });
-        out.push('</svg>');
-        return { svg: out.join(''), box: pageBox };
       },
       async pageText(index: number) {
         const content = await loadPage(index);
@@ -711,9 +780,9 @@ export async function openOfd({
     pages,
     box: documents[0].box,
     documents: documents.length,
-    renderPage(index) {
+    renderPage(index, pageSignal) {
       const { document, local } = owner(index);
-      return document.renderPage(local);
+      return document.renderPage(local, pageSignal);
     },
     pageText(index) {
       const { document, local } = owner(index);
@@ -721,10 +790,8 @@ export async function openOfd({
     },
     close() {
       closed = true;
-      for (const face of faces) document.fonts.delete(face);
-      for (const url of urls) URL.revokeObjectURL(url);
-      for (const seal of nested) seal.close();
-      faces.length = urls.length = nested.length = 0;
+      for (const cleanup of cleanups) cleanup();
+      cleanups.clear();
     },
   };
 }

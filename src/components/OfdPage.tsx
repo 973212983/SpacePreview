@@ -30,23 +30,29 @@ export default function OfdPage({
   // The SVG scales with CSS, so zoom never rebuilds page markup; leaving the viewport drops it.
   useEffect(() => {
     if (!nearby) return;
-    let cancelled = false;
+    const controller = new AbortController();
+    let release: (() => void) | undefined;
     const target = canvas.current!;
     setError('');
     void doc
-      .renderPage(index)
-      .then(({ svg, box }) => {
-        if (cancelled) return;
+      .renderPage(index, controller.signal)
+      .then(({ svg, box, release: dispose }) => {
+        if (controller.signal.aborted) {
+          dispose();
+          return;
+        }
+        release = dispose;
         target.innerHTML = svg;
         setBox(box);
         setRendered(true);
       })
       .catch((reason) => {
-        if (!cancelled) setError(`此页无法渲染：${reason?.message ?? reason}`);
+        if (!controller.signal.aborted) setError(`此页无法渲染：${reason?.message ?? reason}`);
       });
     return () => {
-      cancelled = true;
       target.replaceChildren();
+      controller.abort();
+      release?.();
       setRendered(false);
     };
   }, [doc, index, nearby]);

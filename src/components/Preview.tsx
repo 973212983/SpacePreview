@@ -1058,7 +1058,11 @@ function OfdPreview({ file }: { file: PreviewFile }) {
   }, [zoom, fitZoom]);
   const count = doc?.pages.length;
   return (
-    <div className="pdf-preview ofd-preview">
+    <div
+      className="pdf-preview ofd-preview"
+      data-page-width={doc ? doc.box[2] * OFD_PX_PER_MM : undefined}
+      data-page-height={doc ? doc.box[3] * OFD_PX_PER_MM : undefined}
+    >
       <PreviewAdjustmentIndicator
         visible={adjusting}
         label="缩放"
