@@ -522,8 +522,9 @@ export async function openOfd({
               for (const dy of expandDeltas(code.getAttribute('DeltaY'), chars.length - 1))
                 ys.push(ys[ys.length - 1] + dy);
               const round = (n: number) => Math.round(n * 1000) / 1000;
+              // Glyph positions are per character, so whitespace must never collapse.
               out.push(
-                `<text x="${xs.map(round).join(' ')}" y="${ys.map(round).join(' ')}">${escape(content)}</text>`,
+                `<text xml:space="preserve" x="${xs.map(round).join(' ')}" y="${ys.map(round).join(' ')}">${escape(content)}</text>`,
               );
               x = xs[xs.length - 1];
               y = ys[ys.length - 1];
@@ -539,8 +540,9 @@ export async function openOfd({
                 ? undefined
                 : (parseColor(child(element, 'StrokeColor')) ?? local.stroke ?? { value: '#000' });
             const fill =
+              // Paths without a fill colour stay transparent even when Fill="true" (e.g. invoice ⊗ marks).
               element.getAttribute('Fill') === 'true'
-                ? (parseColor(child(element, 'FillColor')) ?? local.fill ?? { value: '#000' })
+                ? (parseColor(child(element, 'FillColor')) ?? local.fill)
                 : undefined;
             const width = element.hasAttribute('LineWidth')
               ? Number(element.getAttribute('LineWidth'))
