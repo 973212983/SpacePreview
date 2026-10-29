@@ -1069,7 +1069,10 @@ function OfdPreview({ file }: { file: PreviewFile }) {
       ) : (
         <>
           <PreviewToolbar className="content-toolbar pdf-toolbar">
-            <span className="toolbar-summary">OFD 版式文档 · {count ?? '…'} 页</span>
+            <span className="toolbar-summary">
+              OFD 版式文档 · {doc && doc.documents > 1 ? `${doc.documents} 份文档 · ` : ''}
+              {count ?? '…'} 页
+            </span>
           </PreviewToolbar>
           <div className="pdf-body">
             <div className="pdf-scroll" ref={scroll}>

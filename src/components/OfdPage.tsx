@@ -16,7 +16,7 @@ export default function OfdPage({
   const container = useRef<HTMLElement>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const [nearby, setNearby] = useState(false);
-  const [box, setBox] = useState<OfdBox>(doc.box);
+  const [box, setBox] = useState<OfdBox>(doc.pages[index].box);
   const [rendered, setRendered] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
